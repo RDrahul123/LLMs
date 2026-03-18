@@ -21,11 +21,12 @@ No fluff. Just clean explanations, working code, and real examples.
 
 ```
 📦 llm-course
- ┣ 📂 01-introduction         → What are LLMs? How do they work?
- ┣ 📂 02-prompt-engineering   → Craft prompts like a pro
- ┣ 📂 03-llm-apis             → Use OpenAI, Claude, Gemini APIs
- ┣ 📂 04-rag                  → Build retrieval-augmented generation apps
- ┗ 📂 05-fine-tuning          → Fine-tune models on your own data
+ ┣ 📂 01-introduction              → What are LLMs? How do they work?
+ ┣ 📂 02-transformer-architecture  → How transformers work under the hood
+ ┣ 📂 03-prompt-engineering        → Craft prompts like a pro
+ ┣ 📂 04-llm-apis                  → Use OpenAI, Claude, Gemini APIs
+ ┣ 📂 05-rag                       → Build retrieval-augmented generation apps
+ ┗ 📂 06-fine-tuning               → Fine-tune models on your own data
 ```
 
 ---
@@ -54,7 +55,21 @@ No fluff. Just clean explanations, working code, and real examples.
 
 ---
 
-### 🟡 Module 2 — Prompt Engineering
+### 🟡 Module 2 — Transformer Architecture
+> *Understand what's actually happening inside LLMs.*
+
+- Tokenization & embeddings
+- Queries, Keys, Values — how attention works
+- Multi-head attention with math + diagrams
+- Feed-forward networks, residuals, layer norm
+- How it all stacks into a full model
+- Build a mini GPT from scratch (~150 lines of PyTorch)
+
+📁 [`02-transformer-architecture/`](./02-transformer-architecture/README.md)
+
+---
+
+### 🟠 Module 3 — Prompt Engineering
 > *The skill that 10x's your LLM output quality.*
 
 - Zero-shot, few-shot, chain-of-thought prompting

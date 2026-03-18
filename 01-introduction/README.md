@@ -50,17 +50,235 @@ This is done billions of times on massive text datasets until the model gets rea
 ---
 
 ### Step 3: The Transformer Architecture
-LLMs use a **Transformer** — a neural network architecture with a key mechanism called **attention**.
 
-Attention lets the model focus on relevant parts of the input:
+LLMs are built on a neural network architecture called the **Transformer**, introduced by Google in the 2017 paper *"Attention Is All You Need"*. Every major LLM today — GPT, Claude, Gemini, LLaMA — is a Transformer.
+
+Here's the full picture of what happens inside:
 
 ```
-"The bank can guarantee deposits will eventually cover 
- future tuition costs because it has a good reserve."
-
-When predicting what "bank" means → attention focuses on:
-"deposits", "reserve" → financial bank ✅ (not river bank)
+YOUR PROMPT (raw text)
+        │
+        ▼
+┌───────────────────┐
+│   TOKENIZATION    │  "Hello world" → [15339, 1917]
+└────────┬──────────┘
+         │
+         ▼
+┌───────────────────┐
+│    EMBEDDINGS     │  Each token → a vector of numbers
+│                   │  [15339] → [0.24, -0.81, 0.55, ...]
+└────────┬──────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│         TRANSFORMER BLOCKS          │  (repeated N times)
+│                                     │
+│  ┌─────────────────────────────┐    │
+│  │   MULTI-HEAD ATTENTION      │    │
+│  │  "what should I focus on?"  │    │
+│  └──────────────┬──────────────┘    │
+│                 │                   │
+│  ┌──────────────▼──────────────┐    │
+│  │   FEED-FORWARD NETWORK      │    │
+│  │  "process what I focused on"│    │
+│  └─────────────────────────────┘    │
+│                                     │
+└────────┬────────────────────────────┘
+         │
+         ▼
+┌───────────────────┐
+│   OUTPUT HEAD     │  Scores for every possible next token
+└────────┬──────────┘
+         │
+         ▼
+    NEXT TOKEN
+  ("mat", "chair", ...)
 ```
+
+---
+
+## 🔍 The Transformer — Piece by Piece
+
+### 1. Embeddings — Turning Words into Numbers
+
+Before any computation, each token is converted into a **vector** — a list of numbers that captures its meaning.
+
+```
+"king"   → [ 0.81,  0.45, -0.23,  0.67, ...]
+"queen"  → [ 0.79,  0.42, -0.20,  0.69, ...]  ← very similar!
+"banana" → [-0.12, -0.55,  0.91, -0.30, ...]  ← very different
+```
+
+Words with similar meanings end up with similar vectors. This is how the model understands that "dog" and "puppy" are related, even though they look nothing alike as text.
+
+---
+
+### 2. Positional Encoding — Knowing Word Order
+
+Transformers process all tokens **simultaneously** (not one by one), so they need a way to know word order. **Positional encoding** adds a position signal to each embedding:
+
+```
+Token 1: "The"   → embedding + position_1_signal
+Token 2: "cat"   → embedding + position_2_signal
+Token 3: "sat"   → embedding + position_3_signal
+```
+
+Without this, "dog bites man" and "man bites dog" would look identical to the model.
+
+---
+
+### 3. Self-Attention — The Core Mechanism ⭐
+
+This is the heart of the Transformer. **Self-attention** lets every token look at every other token and decide: *"how much should I focus on you to understand my own meaning?"*
+
+```
+Sentence: "The animal didn't cross the street because it was too tired."
+
+What does "it" refer to?
+                                         ┌──────────────────┐
+                                         │  Attention Scores │
+                                         │  for "it"         │
+Token        → Attention Weight          │                   │
+─────────────────────────────            │  animal  ████ 0.7 │
+"The"        → 0.01  (barely)            │  street  ██   0.2 │
+"animal"     → 0.70  ← HIGH             │  tired   █    0.1 │
+"didn't"     → 0.02                     └──────────────────┘
+"cross"      → 0.03
+"street"     → 0.20  ← some
+"it"         → 0.04  (itself)
+```
+
+The model correctly learns that "it" = "animal" by attending strongly to it.
+
+**How it works (conceptually):**
+
+Every token creates three vectors:
+```
+Q (Query)  → "What am I looking for?"
+K (Key)    → "What do I contain?"
+V (Value)  → "What information do I pass along?"
+
+Attention Score = Q · K  (dot product = how well they match)
+Output = weighted sum of all V vectors
+```
+
+---
+
+### 4. Multi-Head Attention — Multiple Perspectives
+
+Instead of running attention once, the Transformer runs it **multiple times in parallel** (e.g., 12 or 32 "heads"), each learning to focus on different relationships:
+
+```
+Head 1  → focuses on grammatical structure ("subject → verb")
+Head 2  → focuses on coreferences ("it" → "animal")
+Head 3  → focuses on semantic similarity ("fast" ↔ "quick")
+Head 4  → focuses on positional proximity
+...
+Head N  → ...
+
+All heads combined → richer, fuller understanding
+```
+
+---
+
+### 5. Feed-Forward Network — Processing the Attended Info
+
+After attention, each token passes through a **feed-forward neural network** independently. This is where the model does most of its "reasoning" — transforming the attended context into a useful representation.
+
+```
+attended_token_vector
+        │
+        ▼
+  Linear Layer (expand)
+        │
+        ▼
+  ReLU Activation (non-linearity)
+        │
+        ▼
+  Linear Layer (compress)
+        │
+        ▼
+  processed_token_vector
+```
+
+---
+
+### 6. Stacking Blocks — Depth = Understanding
+
+A single attention + feed-forward block is called a **Transformer layer**. LLMs stack many of these:
+
+```
+GPT-2 Small  →  12 layers
+GPT-3        →  96 layers
+GPT-4        → ~120 layers (estimated)
+LLaMA 3 70B  →  80 layers
+```
+
+Each layer builds on the previous one — early layers learn syntax, middle layers learn semantics, deep layers learn complex reasoning and world knowledge.
+
+---
+
+### 7. The Output — Predicting the Next Token
+
+After all transformer layers, the final representation is passed to an **output head** that produces a probability score for every token in the vocabulary (~50,000 tokens for GPT):
+
+```
+Vocabulary scores after "The cat sat on the":
+
+"mat"    → 18.4%  ← highest
+"floor"  → 12.1%
+"chair"  →  9.3%
+"roof"   →  3.2%
+"moon"   →  0.1%
+...
+```
+
+The model picks the next token (influenced by temperature), appends it to the input, and repeats the whole process — one token at a time.
+
+---
+
+### Full Flow — End to End
+
+```
+Input: "Translate to French: Hello"
+         │
+         ▼
+    Tokenize → [41819, 284, 4141, 25, 18435]
+         │
+         ▼
+    Embed each token into vectors
+         │
+         ▼
+    Add positional encodings
+         │
+         ▼
+    ┌──────────────────────┐
+    │  Transformer Block 1 │ ← learns basic patterns
+    │  Transformer Block 2 │ ← learns grammar
+    │  ...                 │
+    │  Transformer Block N │ ← learns task intent
+    └──────────────────────┘
+         │
+         ▼
+    Output scores → "Bonjour" (highest probability)
+         │
+         ▼ (repeat with "Bonjour" appended)
+    Output scores → "!" 
+         │
+         ▼
+Final output: "Bonjour !"
+```
+
+---
+
+### Why "Attention Is All You Need"?
+
+Before Transformers (2017), models processed text **sequentially** — word by word, left to right (RNNs, LSTMs). This was slow and struggled with long-range dependencies.
+
+Transformers process **all tokens simultaneously** and can attend to any token regardless of distance. This made them:
+- ✅ Much faster to train (parallelizable on GPUs)
+- ✅ Better at long-range dependencies
+- ✅ Scalable to billions of parameters
 
 ---
 
