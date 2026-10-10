@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">LLM lifecycle from training to application response</title>
+  <desc id="desc">Training data produces learned model weights; at runtime a prompt and optional evidence or tools are processed to produce an answer that an application validates.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#53657d"/></marker></defs>
+  <rect width="1200" height="330" rx="24" fill="#f6f8fc"/>
+  <text x="42" y="48" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#172b4d">Two phases: learning parameters, then using context</text>
+  <text x="46" y="92" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="1.5" fill="#66758a">TRAINING (OFFLINE)</text>
+  <rect x="44" y="112" width="185" height="84" rx="14" fill="#e5edff" stroke="#7395ef"/><text x="136" y="147" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#173b8f">Text + code</text><text x="136" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#43546c">training examples</text>
+  <path d="M232 154h54" stroke="#53657d" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="294" y="112" width="185" height="84" rx="14" fill="#e7f7f1" stroke="#54ae88"/><text x="386" y="147" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#146445">Optimization</text><text x="386" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#43546c">learn useful weights</text>
+  <path d="M482 154h54" stroke="#53657d" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="544" y="112" width="185" height="84" rx="14" fill="#eee9ff" stroke="#9c82e8"/><text x="636" y="147" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#5232a3">Model weights</text><text x="636" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#43546c">learned parameters</text>
+  <line x1="758" y1="84" x2="758" y2="278" stroke="#d3dbe7" stroke-width="2" stroke-dasharray="7 7"/>
+  <text x="784" y="92" font-family="Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="1.5" fill="#66758a">INFERENCE (PER REQUEST)</text>
+  <rect x="786" y="112" width="145" height="84" rx="14" fill="#fff2dc" stroke="#e3a748"/><text x="858" y="147" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#8a5310">Prompt</text><text x="858" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#43546c">current task</text>
+  <path d="M934 154h38" stroke="#53657d" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="980" y="112" width="170" height="84" rx="14" fill="#e5edff" stroke="#7395ef"/><text x="1065" y="147" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#173b8f">Generate</text><text x="1065" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#43546c">next token loop</text>
+  <path d="M1065 202v45h-411" fill="none" stroke="#53657d" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="405" y="236" width="300" height="58" rx="14" fill="#e7f7f1" stroke="#54ae88"/><text x="555" y="261" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#146445">Validate • cite • apply policy</text><text x="555" y="282" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="#43546c">application responsibility</text>
+  <text x="44" y="262" font-family="Arial,sans-serif" font-size="13" fill="#66758a">Runtime evidence and tool results can be added to the prompt; they do not automatically update the model weights.</text>
+</svg>

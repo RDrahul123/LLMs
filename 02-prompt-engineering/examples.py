@@ -1,205 +1,232 @@
 """
-Module 2: Prompt Engineering Examples
-======================================
-Run each example individually by calling the function.
-Make sure to set OPENAI_API_KEY in your .env file.
+Prompt Engineering Examples
+===========================
+Runnable examples of prompting techniques using the OpenAI API.
+
+Install: pip install openai
+Setup:   export OPENAI_API_KEY="your-key-here"
+
+Usage:   python examples.py
 """
 
-from openai import OpenAI
-from dotenv import load_dotenv
+import os
+import sys
 
-load_dotenv()
-client = OpenAI()
+try:
+    from openai import OpenAI
+except ImportError:
+    print("Install openai: pip install openai")
+    sys.exit(1)
 
-# ─────────────────────────────────────────────
-# 1. Zero-Shot Prompting
-# ─────────────────────────────────────────────
+client = OpenAI()  # Uses OPENAI_API_KEY env var
+
+MODEL = "gpt-4o-mini"
+
 
 def zero_shot_sentiment():
+    """Classify sentiment with no examples."""
+    print("\n" + "=" * 50)
+    print("ZERO-SHOT SENTIMENT CLASSIFICATION")
+    print("=" * 50)
+
+    review = "The food was amazing, but the service was painfully slow."
+    prompt = f"Classify the sentiment of this review as positive, negative, or neutral:\n\n\"{review}\""
+
+    print(f"\nReview: {review}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "Classify the sentiment of this review as Positive, Negative, or Neutral:\n"
-                    "'The product works fine but the packaging was damaged.'"
-                ),
-            }
-        ],
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
     )
-    print("Zero-Shot Result:", response.choices[0].message.content)
+    print(f"Result: {response.choices[0].message.content}")
 
-
-# ─────────────────────────────────────────────
-# 2. Few-Shot Prompting
-# ─────────────────────────────────────────────
 
 def few_shot_sentiment():
+    """Classify sentiment with examples."""
+    print("\n" + "=" * 50)
+    print("FEW-SHOT SENTIMENT CLASSIFICATION")
+    print("=" * 50)
+
+    prompt = """Classify the sentiment of each review as positive, negative, or neutral.
+
+Review: "Absolutely love this product!" → Positive
+Review: "Broke after one day, total waste." → Negative
+Review: "It works fine, nothing special." → Neutral
+
+Review: "The food was amazing, but the service was painfully slow." →"""
+
+    print(f"\nPrompt:\n{prompt}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": """Classify sentiment. Examples:
-
-Review: 'Amazing product, love it!' → Positive
-Review: 'Terrible, broke after one day.' → Negative
-Review: 'It arrived on time.' → Neutral
-
-Now classify:
-Review: 'Good quality but a bit expensive.'""",
-            }
-        ],
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
     )
-    print("Few-Shot Result:", response.choices[0].message.content)
+    print(f"\nResult: {response.choices[0].message.content}")
 
-
-# ─────────────────────────────────────────────
-# 3. Chain-of-Thought Prompting
-# ─────────────────────────────────────────────
 
 def chain_of_thought_math():
+    """Solve a math problem using chain-of-thought."""
+    print("\n" + "=" * 50)
+    print("CHAIN-OF-THOUGHT MATH")
+    print("=" * 50)
+
+    prompt = """Solve this step by step:
+
+A store sells t-shirts for $25 each.
+If you buy 3 or more, you get a 20% discount.
+Tax is 8% on the discounted price.
+How much do 5 t-shirts cost (including tax)?
+
+Show your work step by step."""
+
+    print(f"\nPrompt:\n{prompt}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "A store sells apples for $0.75 each and oranges for $1.20 each. "
-                    "If I buy 4 apples and 3 oranges, how much do I spend in total?\n\n"
-                    "Think step by step."
-                ),
-            }
-        ],
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
     )
-    print("CoT Result:", response.choices[0].message.content)
+    print(f"\nResult:\n{response.choices[0].message.content}")
 
-
-# ─────────────────────────────────────────────
-# 4. Role Prompting
-# ─────────────────────────────────────────────
 
 def role_prompting_code_review():
+    """Use role prompting for a code review."""
+    print("\n" + "=" * 50)
+    print("ROLE PROMPTING — CODE REVIEW")
+    print("=" * 50)
+
+    system = "You are a senior security engineer with 15 years of experience. You focus on finding security vulnerabilities in code."
+
     code = """
-def calculate_average(numbers):
-    total = 0
-    for n in numbers:
-        total = total + n
-    avg = total / len(numbers)
-    return avg
+def authenticate(username, password):
+    query = f"SELECT * FROM users WHERE name='{username}' AND pass='{password}'"
+    result = db.execute(query)
+    if result:
+        return create_session(username)
+    return None
 """
 
+    user = f"Review this code for security issues:\n\n```python\n{code}\n```"
+
+    print(f"\nSystem: {system}")
+    print(f"Code:\n{code}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL,
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a senior Python developer with 10 years of experience. "
-                    "You write clean, Pythonic code following PEP 8 standards. "
-                    "When reviewing code, explain WHY something should change, not just that it should."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Review this Python function and suggest improvements:\n```python{code}```",
-            },
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
+        temperature=0.3,
     )
-    print("Code Review:", response.choices[0].message.content)
+    print(f"\nReview:\n{response.choices[0].message.content}")
 
 
-# ─────────────────────────────────────────────
-# 5. Prompt Templates
-# ─────────────────────────────────────────────
+def summarize():
+    """Template function for summarization."""
+    print("\n" + "=" * 50)
+    print("SUMMARIZATION TEMPLATE")
+    print("=" * 50)
 
-def summarize(text: str, audience: str = "general public", bullets: int = 3) -> str:
-    """Reusable summarization prompt template."""
-    prompt = f"""Summarize the following text in {bullets} bullet points.
-Target audience: {audience}
-Be concise and focus on actionable insights.
+    text = """
+    Large language models have transformed the field of natural language processing.
+    These models, trained on vast corpora of text, can perform a wide range of tasks
+    including translation, summarization, question answering, and code generation.
+    The Transformer architecture, introduced in 2017, forms the foundation of all
+    modern LLMs. Key innovations include self-attention mechanisms, positional
+    embeddings, and pre-training followed by fine-tuning. Recent trends show a move
+    toward larger models with more parameters, longer context windows, and multimodal
+    capabilities. Companies like OpenAI, Anthropic, Google, and Meta are leading the
+    development of increasingly capable models.
+    """
 
-Text:
-{text}"""
+    prompt = f"Summarize the following text in exactly 3 bullet points:\n\n{text}"
 
+    print(f"\nText: {text[:100]}...")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
     )
-    return response.choices[0].message.content
+    print(f"\nSummary:\n{response.choices[0].message.content}")
 
 
-def translate(text: str, target_language: str) -> str:
-    """Reusable translation prompt template."""
-    prompt = f"""Translate the following text to {target_language}.
-Preserve the original tone and formatting.
+def translate():
+    """Template function for translation."""
+    print("\n" + "=" * 50)
+    print("TRANSLATION TEMPLATE")
+    print("=" * 50)
 
-Text:
-{text}"""
+    prompt = """Translate the following English text to Spanish, French, and Japanese.
+Return the translations as a numbered list.
 
+Text: "The weather is beautiful today. I think I'll go for a walk in the park."
+"""
+
+    print(f"\nPrompt:\n{prompt}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
     )
-    return response.choices[0].message.content
+    print(f"Translations:\n{response.choices[0].message.content}")
 
 
-def extract_info(text: str, fields: list[str]) -> str:
-    """Extract structured information from unstructured text."""
-    fields_str = "\n".join(f"- {f}" for f in fields)
-    prompt = f"""Extract the following information from the text below.
-Return the result as JSON with these exact keys:
-{fields_str}
+def extract_info():
+    """Template function for information extraction."""
+    print("\n" + "=" * 50)
+    print("INFORMATION EXTRACTION TEMPLATE")
+    print("=" * 50)
 
-If a field is not found, use null.
+    text = """
+    Hi, I'm John Smith and I'd like to schedule a meeting.
+    My email is john.smith@company.com and my phone is 555-0123.
+    I'm available on Tuesday or Thursday afternoon next week.
+    I'd like to discuss the Q4 budget proposal.
+    """
 
-Text:
-{text}"""
+    prompt = f"""Extract structured information from this message as JSON:
 
+{text}
+
+Return JSON with these fields:
+- name
+- email
+- phone
+- available_days
+- preferred_time
+- topic
+"""
+
+    print(f"\nMessage:\n{text}")
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODEL,
         messages=[{"role": "user", "content": prompt}],
+        temperature=0,
         response_format={"type": "json_object"},
     )
-    return response.choices[0].message.content
+    print(f"\nExtracted:\n{response.choices[0].message.content}")
 
 
-# ─────────────────────────────────────────────
-# Run All Examples
-# ─────────────────────────────────────────────
+def main():
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("Set OPENAI_API_KEY environment variable first.")
+        print("  export OPENAI_API_KEY='your-key-here'")
+        sys.exit(1)
+
+    print("Prompt Engineering Examples")
+    print("Using model:", MODEL)
+
+    zero_shot_sentiment()
+    few_shot_sentiment()
+    chain_of_thought_math()
+    role_prompting_code_review()
+    summarize()
+    translate()
+    extract_info()
+
+    print("\n" + "=" * 50)
+    print("All demos complete!")
+    print("=" * 50)
+
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("1. ZERO-SHOT PROMPTING")
-    print("=" * 50)
-    zero_shot_sentiment()
-
-    print("\n" + "=" * 50)
-    print("2. FEW-SHOT PROMPTING")
-    print("=" * 50)
-    few_shot_sentiment()
-
-    print("\n" + "=" * 50)
-    print("3. CHAIN-OF-THOUGHT PROMPTING")
-    print("=" * 50)
-    chain_of_thought_math()
-
-    print("\n" + "=" * 50)
-    print("4. ROLE PROMPTING")
-    print("=" * 50)
-    role_prompting_code_review()
-
-    print("\n" + "=" * 50)
-    print("5. PROMPT TEMPLATES")
-    print("=" * 50)
-    sample_text = (
-        "The James Webb Space Telescope has captured new images of a galaxy 13.4 billion "
-        "light-years away, giving astronomers a glimpse into the early universe. "
-        "The findings challenge existing models of galaxy formation."
-    )
-    print(summarize(sample_text, audience="high school students", bullets=3))
-
-    print("\nExtraction Example:")
-    contact_text = "Hi, I'm Sarah Johnson. You can reach me at sarah@example.com or call +1-555-0199."
-    print(extract_info(contact_text, ["name", "email", "phone"]))
+    main()

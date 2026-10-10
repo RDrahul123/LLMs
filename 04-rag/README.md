@@ -1,223 +1,244 @@
-# Module 4 — RAG (Retrieval Augmented Generation) 🔵
+# Module 5: Retrieval-Augmented Generation (RAG)
 
-> **Level:** Intermediate | **Time:** ~3 hours | **Code:** Python
+> **Level:** Intermediate | **Time:** ~2.5 hours | **Prerequisites:** Modules 1-4 | **Code:** rag_pipeline.py, embeddings_demo.py, chat_with_pdf.py
 
 ---
 
 ## The Problem RAG Solves
 
-LLMs have two critical limitations:
-1. **Knowledge cutoff** — they don't know recent events
-2. **No access to your data** — they can't read your PDFs, docs, or databases
+LLMs have a fundamental limitation: **they only know what was in their training data.** They can't access:
+- Your company's internal documents
+- Real-time information
+- Private data
+- Recently published papers
 
-**RAG** fixes this by giving the LLM relevant information at query time.
+**RAG** (Retrieval-Augmented Generation) solves this by combining:
+1. **Retrieval** — Find relevant documents from a knowledge base
+2. **Generation** — Feed those documents to an LLM as context
+
+```
+Without RAG:           With RAG:
+┌──────────┐           ┌──────────┐     ┌──────────────┐
+│   LLM    │           │   LLM    │◄────│ Your Data    │
+│          │           │          │     │ (Vector DB)  │
+│ Training │           │ Training │     └──────┬───────┘
+│ data only│           │ data     │            │
+└──────────┘           └──────────┘     ┌──────┴───────┐
+                                        │  Retriever   │
+User: "What's our      User: "What's    │  (Embeddings)│
+sick leave policy?"    our sick         └──────────────┘
+                        leave policy?"
+Answer: "I don't       Answer: "Per your
+know."                  HR handbook,..."
+```
 
 ---
 
 ## How RAG Works
 
+![RAG ingestion and query-time retrieval pipeline](../assets/diagrams/rag-pipeline.svg)
+
 ```
-                    ┌─────────────────────────────────┐
-                    │         YOUR DOCUMENTS          │
-                    │  (PDFs, URLs, docs, databases)  │
-                    └──────────────┬──────────────────┘
-                                   │
-                            1. CHUNK TEXT
-                                   │
-                            2. EMBED CHUNKS
-                            (convert to vectors)
-                                   │
-                            3. STORE IN VECTOR DB
-                                   │
-User Query ──► 4. EMBED QUERY ──► 5. SIMILARITY SEARCH
-                                   │
-                         6. RETRIEVE TOP K CHUNKS
-                                   │
-                    ┌──────────────▼──────────────────┐
-                    │   LLM PROMPT = Query + Chunks   │
-                    └──────────────┬──────────────────┘
-                                   │
-                            7. LLM GENERATES
-                            GROUNDED ANSWER
-                                   │
-                              Final Answer
+Step 1: INGEST                    Step 2: QUERY
+┌─────────────────┐              ┌─────────────────┐
+│  Documents      │              │  User Question   │
+│  (PDF, TXT, MD) │              │  "What's the     │
+└────────┬────────┘              │   return policy?"│
+         │                       └────────┬────────┘
+         ▼                                ▼
+┌─────────────────┐              ┌─────────────────┐
+│  Chunking       │              │  Embed Question  │
+│  Split into     │              │  → vector        │
+│  small pieces   │              └────────┬────────┘
+└────────┬────────┘                       │
+         ▼                                ▼
+┌─────────────────┐              ┌─────────────────┐
+│  Embedding      │              │  Vector Search   │
+│  Each chunk →   │              │  Find top-K      │
+│  vector         │              │  similar chunks  │
+└────────┬────────┘              └────────┬────────┘
+         ▼                                ▼
+┌─────────────────┐              ┌─────────────────┐
+│  Vector DB      │              │  LLM + Context  │
+│  Store all      │              │  Generate answer │
+│  vectors        │              │  using retrieved │
+└─────────────────┘              │  documents       │
+                                 └─────────────────┘
 ```
 
 ---
 
 ## Key Concepts
 
-### 📦 Chunking
-Splitting documents into smaller pieces so they fit in the LLM's context window and can be retrieved precisely.
+### Chunking
+
+Documents are split into small pieces (chunks) for embedding. Common strategies:
+
+| Strategy | Chunk Size | Best For |
+|----------|-----------|----------|
+| Fixed-size | 500-1000 chars | Simple documents |
+| Sentence | 1 sentence | Precise retrieval |
+| Paragraph | 1 paragraph | Context-rich |
+| Semantic | Variable | Best quality |
+| Recursive | Variable | Most flexible |
+
+**Rule of thumb:** 200-1000 tokens per chunk, with 50-100 token overlap.
+
+### Embeddings
+
+Text embeddings are dense vectors that capture semantic meaning. Similar texts have similar vectors.
 
 ```python
-# Simple chunking by character count
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
+# "The cat sat on the mat" and "A feline rested on the rug"
+# would have very similar embedding vectors
+```
+
+Popular embedding models:
+- `text-embedding-3-small` (OpenAI) — 1536 dimensions
+- `text-embedding-3-large` (OpenAI) — 3072 dimensions
+- `BAAI/bge-small-en-v1.5` — Open-source, 384 dimensions
+- `all-MiniLM-L6-v2` — Fast, lightweight
+
+### Vector Databases
+
+Specialized databases for storing and searching vectors efficiently.
+
+| Database | Type | Best For |
+|----------|------|----------|
+| ChromaDB | Embedded | Development, simple |
+| Pinecone | Cloud | Production, managed |
+| Weaviate | Self-hosted | Advanced features |
+| Qdrant | Self-hosted | High performance |
+| FAISS | Library | Research, local |
+| pgvector | Extension | PostgreSQL users |
+
+---
+
+## Build a RAG Pipeline
+
+### Step 1: Load & Chunk Documents
+
+```python
+def chunk_text(text, chunk_size=500, overlap=50):
     chunks = []
     start = 0
     while start < len(text):
         end = start + chunk_size
         chunks.append(text[start:end])
-        start = end - overlap  # overlap prevents cutting mid-sentence
+        start = end - overlap
     return chunks
 ```
 
-**Chunk size tips:**
-- Too small (< 100 chars) → loses context
-- Too large (> 2000 chars) → retrieves too much noise
-- Sweet spot: 200–800 characters with 10–20% overlap
-
----
-
-### 🔢 Embeddings
-Converting text into numerical vectors that capture meaning.
+### Step 2: Generate Embeddings
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-def embed(text: str) -> list[float]:
+def get_embedding(text):
     response = client.embeddings.create(
         model="text-embedding-3-small",
         input=text
     )
-    return response.data[0].embedding  # list of 1536 floats
-
-# Similar texts → similar vectors
-embed("I love dogs")      # [0.12, -0.34, 0.89, ...]
-embed("I adore puppies")  # [0.11, -0.31, 0.87, ...]  ← very close!
-embed("The stock rose")   # [0.92, 0.14, -0.22, ...]  ← far away
+    return response.data[0].embedding
 ```
 
----
+### Step 3: Store in Vector Database
 
-### 🗄️ Vector Databases
-Store embeddings and retrieve the most similar ones to a query.
-
-| Database | Best For | Free Tier |
-|---|---|---|
-| **FAISS** | Local, in-memory | ✅ Always free |
-| **ChromaDB** | Local, persistent | ✅ Always free |
-| **Pinecone** | Production, cloud | ✅ Limited |
-| **Weaviate** | Enterprise | ✅ Limited |
-| **pgvector** | PostgreSQL users | ✅ Self-hosted |
-
----
-
-## Build a RAG Pipeline from Scratch
-
-### Step 1: Install Dependencies
-```bash
-pip install openai chromadb pypdf python-dotenv
-```
-
-### Step 2: Ingest Documents
 ```python
 import chromadb
-from openai import OpenAI
-from pypdf import PdfReader
 
-client = OpenAI()
-chroma = chromadb.Client()
-collection = chroma.create_collection("my_docs")
+chroma_client = chromadb.Client()
+collection = chroma_client.create_collection("documents")
 
-def ingest_pdf(filepath: str):
-    # Extract text
-    reader = PdfReader(filepath)
-    text = "\n".join(page.extract_text() for page in reader.pages)
-
-    # Chunk
-    chunks = chunk_text(text, chunk_size=500, overlap=50)
-
-    # Embed and store
-    embeddings = [
-        client.embeddings.create(model="text-embedding-3-small", input=chunk).data[0].embedding
-        for chunk in chunks
-    ]
-
+# Store chunks with embeddings
+for i, chunk in enumerate(chunks):
+    embedding = get_embedding(chunk)
     collection.add(
-        documents=chunks,
-        embeddings=embeddings,
-        ids=[f"chunk_{i}" for i in range(len(chunks))]
+        ids=[f"chunk_{i}"],
+        embeddings=[embedding],
+        documents=[chunk]
     )
-    print(f"✅ Ingested {len(chunks)} chunks from {filepath}")
 ```
 
-### Step 3: Query
-```python
-def rag_query(question: str, top_k: int = 3) -> str:
-    # Embed the question
-    query_embedding = client.embeddings.create(
-        model="text-embedding-3-small",
-        input=question
-    ).data[0].embedding
+### Step 4: Query
 
-    # Retrieve relevant chunks
+```python
+def rag_query(question, collection, top_k=3):
+    # Embed the question
+    q_embedding = get_embedding(question)
+
+    # Find similar chunks
     results = collection.query(
-        query_embeddings=[query_embedding],
+        query_embeddings=[q_embedding],
         n_results=top_k
     )
 
-    context = "\n\n---\n\n".join(results["documents"][0])
+    # Build context
+    context = "\n\n".join(results["documents"][0])
 
-    # Ask LLM with context
+    # Generate answer
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Answer questions based ONLY on the provided context. "
-                    "If the answer is not in the context, say 'I don't know based on the provided documents.'"
-                )
-            },
-            {
-                "role": "user",
-                "content": f"Context:\n{context}\n\nQuestion: {question}"
-            }
+            {"role": "system", "content": f"Answer based on this context:\n\n{context}"},
+            {"role": "user", "content": question}
         ]
     )
-
     return response.choices[0].message.content
 ```
 
-### Step 4: Run It
-```python
-ingest_pdf("your_document.pdf")
+---
 
-answer = rag_query("What are the main conclusions of this report?")
-print(answer)
+## Best Practices
+
+1. **Chunk size matters** — Too small loses context, too large dilutes relevance
+2. **Add overlap** — Prevents cutting sentences in half
+3. **Use metadata** — Store source file, page number, date with each chunk
+4. **Re-ranking** — After retrieval, use a model to re-rank results by relevance
+5. **Hybrid search** — Combine vector search with keyword search
+6. **Handle edge cases** — What if no documents match? What if the question is outside scope?
+7. **Citation** — Always tell the user which document the answer came from
+8. **Evaluate** — Test retrieval quality, not just answer quality
+
+---
+
+## Try It Yourself
+
+```bash
+# Ingest a document
+python 04-rag/rag_pipeline.py --ingest document.pdf
+
+# Ask a question
+python 04-rag/rag_pipeline.py --query "What is the main topic?"
+
+# Interactive chat
+python 04-rag/rag_pipeline.py --chat
+
+# Chat with a PDF
+python 04-rag/chat_with_pdf.py document.pdf
 ```
 
 ---
 
-## RAG Best Practices
+## What's Next?
 
-### ✅ Do This
-- **Rerank results** — use a cross-encoder to rerank retrieved chunks for better precision
-- **Add metadata** — store source, page number, date with chunks for citations
-- **Hybrid search** — combine vector search with keyword search (BM25)
-- **Evaluate** — use frameworks like RAGAS to measure retrieval quality
+You can build applications that use your own data. But what if you need the model to have specialized knowledge?
 
-### ❌ Avoid This
-- Chunks that are too large (model gets confused by irrelevant info)
-- No overlap between chunks (misses context at chunk boundaries)
-- Embedding the question differently than the documents
-- Trusting retrieval blindly without checking relevance scores
+**→ [Module 6: Fine-Tuning](../05-fine-tuning/README.md)**
+
+Learn how to customize LLMs for your specific use case.
 
 ---
 
-## 📁 Files in This Module
+## Further Reading
 
-| File | Description |
-|---|---|
-| [`rag_pipeline.py`](./rag_pipeline.py) | Full RAG pipeline with ChromaDB |
-| [`chat_with_pdf.py`](./chat_with_pdf.py) | Interactive "chat with your PDF" app |
-| [`embeddings_demo.py`](./embeddings_demo.py) | Visualizing what embeddings are |
+- [LangChain RAG Tutorial](https://python.langchain.com/docs/tutorials/rag/)
+- [LlamaIndex Documentation](https://docs.llamaindex.ai/)
+- [ChromaDB Getting Started](https://docs.trychroma.com/docs/overview/getting-started)
+- [Pinecone RAG Guide](https://www.pinecone.io/learn/retrieval-augmented-generation/)
 
----
+## Visual Deep Dive
 
-## ✅ What's Next?
-
-👉 **[Module 5 — Fine-Tuning](../05-fine-tuning/README.md)**
+Continue to **[Module 5 Deep Dive](deep-dive.md)** for the separate ingestion/query paths, chunking trade-offs, retrieval diagnostics, citations, and evaluation.

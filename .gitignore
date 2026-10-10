@@ -1,36 +1,58 @@
-# Environment & secrets — NEVER commit these
-.env
-*.env
-
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+*$py.class
+*.so
 .Python
 *.egg-info/
+*.egg
 dist/
 build/
+eggs/
+*.whl
+
+# Virtual environments
 venv/
 .venv/
 env/
-
-# Vector DB data
-chroma_db/
-*.db
-
-# Jupyter notebooks checkpoints
-.ipynb_checkpoints/
-
-# OS files
-.DS_Store
-Thumbs.db
+ENV/
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
-# Models
+# Environment & Secrets
+.env
+*.env
+.env.local
+.env.*.local
+projects/03-document-qa/.streamlit/secrets.toml
+
+# Local indexes and databases
+chroma_db/
+*.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Project-specific
+*.pt
+*.pth
 *.bin
 *.safetensors
+*.onnx
+mini_gpt.pt
+output/
+wandb/
+mlruns/

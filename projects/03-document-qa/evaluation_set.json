@@ -1,0 +1,26 @@
+[
+  {
+    "question": "How much does the Team plan cost per member each month?",
+    "expected_source": "product_handbook.md"
+  },
+  {
+    "question": "How can a workspace owner export their project data?",
+    "expected_source": "security_faq.md"
+  },
+  {
+    "question": "How many overlapping working hours should teams have each day?",
+    "expected_source": "remote_work_policy.md"
+  },
+  {
+    "question": "When are daily reminders sent for overdue tasks?",
+    "expected_source": "product_handbook.md"
+  },
+  {
+    "question": "How long does a password reset link remain valid?",
+    "expected_source": "security_faq.md"
+  },
+  {
+    "question": "How much can employees claim for home-office equipment?",
+    "expected_source": "remote_work_policy.md"
+  }
+]

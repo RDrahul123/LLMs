@@ -1,304 +1,218 @@
-# Module 5 — Fine-Tuning LLMs 🔴
+# Module 6: Fine-Tuning
 
-> **Level:** Advanced | **Time:** ~4 hours | **Code:** Python
+> **Level:** Advanced | **Time:** ~3 hours | **Prerequisites:** Modules 1-5 | **Code:** finetune_openai.py, prepare_dataset.py, sample_data.jsonl
 
 ---
 
 ## What is Fine-Tuning?
 
-Fine-tuning takes a pre-trained LLM and trains it further on **your specific data** to make it better at a particular task.
+Fine-tuning is the process of **further training** a pre-trained LLM on a smaller, task-specific dataset. Instead of learning language from scratch, the model adapts its existing knowledge to your specific use case.
 
 ```
-Base Model (GPT-4o-mini)
-        +
-Your Custom Data (JSONL)
-        =
-Fine-Tuned Model (your-model-ft-xyz)
+Pre-training:         Fine-tuning:
+Internet text → LLM   Your data → Specialized LLM
+(General knowledge)   (Domain expertise)
 ```
 
 ---
 
-## Fine-Tune vs. Prompt Engineer vs. RAG
+## When to Fine-Tune?
 
-This is the most important decision before you start:
+### Decision Table
 
-| Approach | When to Use | Cost | Complexity |
-|---|---|---|---|
-| **Prompt Engineering** | General tasks, quick wins | Low | Low |
-| **RAG** | Need access to your data/docs | Medium | Medium |
-| **Fine-Tuning** | Specific style/format/behavior | High | High |
+| Approach | Best When | Pros | Cons |
+|----------|-----------|------|------|
+| **Prompt Engineering** | Simple tasks, few examples | No training needed, fast iteration | Limited by prompt length, no customization |
+| **RAG** | Need access to specific data | No retraining, always up-to-date | Retrieval quality varies, slower |
+| **Fine-Tuning** | Consistent format/style, domain expertise | Deep customization, faster inference | Requires data, expensive, maintenance |
 
-### Use Fine-Tuning When:
-- ✅ You need a very specific output format consistently
-- ✅ You want to match your brand's writing style exactly
-- ✅ The task is very domain-specific (medical, legal, code)
-- ✅ You want faster/cheaper inference than few-shot prompting
-- ✅ Prompt engineering has hit a ceiling
-
-### Don't Use Fine-Tuning When:
-- ❌ You need fresh/recent information → use RAG
-- ❌ You just need a one-time task → use prompting
-- ❌ You have less than ~50 examples → not enough data
-- ❌ You're still exploring the task → start with prompts first
+**Rule of thumb:** Try prompt engineering first → then RAG → then fine-tune.
 
 ---
 
-## The Fine-Tuning Process
+## Dataset Preparation
 
+### JSONL Format
+
+OpenAI fine-tuning expects **JSONL** (JSON Lines) files with `messages` arrays:
+
+```jsonl
+{"messages": [{"role": "system", "content": "You are a helpful customer support agent."}, {"role": "user", "content": "How do I reset my password?"}, {"role": "assistant", "content": "To reset your password:\n1. Go to Settings\n2. Click 'Security'\n3. Select 'Reset Password'\n4. Check your email for the reset link"}]}
+{"messages": [{"role": "system", "content": "You are a helpful customer support agent."}, {"role": "user", "content": "Can I change my email address?"}, {"role": "assistant", "content": "Yes! To change your email:\n1. Go to Settings > Profile\n2. Click 'Edit' next to your email\n3. Enter your new email\n4. Verify the new email address"}]}
 ```
-1. Prepare Dataset  →  JSONL format with prompt/completion pairs
-2. Upload to API    →  Training file gets validated
-3. Start Job        →  Training takes minutes to hours
-4. Evaluate         →  Test the fine-tuned model
-5. Deploy           →  Use your model via API
-```
+
+### Data Quality Tips
+
+1. **Consistency** — Use the same format across all examples
+2. **Coverage** — Include edge cases and common questions
+3. **Quality** — Proofread; the model learns your mistakes too
+4. **Volume** — Minimum 10 examples, 50-100+ for good results
+5. **Balance** — Don't overrepresent any single pattern
+
+### sample_data.jsonl
+
+See `05-fine-tuning/sample_data.jsonl` for 5 customer support training examples.
 
 ---
 
-## Step 1: Prepare Your Dataset
+## OpenAI Fine-Tuning API
 
-### The JSONL Format
-Each line is a complete training example with `messages` (same format as chat API):
-
-```json
-{"messages": [{"role": "system", "content": "You are a helpful customer support agent for AcmeCorp."}, {"role": "user", "content": "My order hasn't arrived."}, {"role": "assistant", "content": "I'm sorry to hear that! Let me look into your order right away. Could you please share your order number so I can check the status for you?"}]}
-{"messages": [{"role": "system", "content": "You are a helpful customer support agent for AcmeCorp."}, {"role": "user", "content": "How do I cancel my subscription?"}, {"role": "assistant", "content": "I can help you cancel your subscription. You can do this in two ways: (1) Go to Settings → Subscription → Cancel, or (2) Reply here and I'll process it for you. Which would you prefer?"}]}
-```
-
-### Dataset Size Guidelines
-| Dataset Size | Expected Improvement |
-|---|---|
-| 10–50 examples | Small style/format improvements |
-| 50–200 examples | Noticeable behavior changes |
-| 200–1000 examples | Strong task-specific improvements |
-| 1000+ examples | Significant capability changes |
-
-### Quality > Quantity
-50 high-quality examples beats 500 mediocre ones. Each example should:
-- Represent the task you want to improve
-- Show the exact output format/style you want
-- Be reviewed by a human for correctness
-
----
-
-## Step 2: Validate Your Dataset
-
-```python
-import json
-
-def validate_jsonl(filepath: str):
-    errors = []
-    with open(filepath, "r") as f:
-        for i, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                example = json.loads(line)
-                if "messages" not in example:
-                    errors.append(f"Line {i}: Missing 'messages' key")
-                    continue
-                for msg in example["messages"]:
-                    if "role" not in msg or "content" not in msg:
-                        errors.append(f"Line {i}: Message missing 'role' or 'content'")
-                    if msg["role"] not in ("system", "user", "assistant"):
-                        errors.append(f"Line {i}: Invalid role '{msg['role']}'")
-            except json.JSONDecodeError as e:
-                errors.append(f"Line {i}: Invalid JSON — {e}")
-
-    if errors:
-        print("❌ Validation failed:")
-        for error in errors:
-            print(f"  • {error}")
-    else:
-        print("✅ Dataset is valid!")
-
-    return len(errors) == 0
-```
-
----
-
-## Step 3: Fine-Tune with OpenAI API
+### Full Pipeline
 
 ```python
 from openai import OpenAI
-import time
-
 client = OpenAI()
 
-# Upload training file
-print("📤 Uploading training file...")
-with open("training_data.jsonl", "rb") as f:
-    upload = client.files.create(file=f, purpose="fine-tune")
-
-file_id = upload.id
-print(f"✅ File uploaded: {file_id}")
-
-# Start fine-tuning job
-print("🚀 Starting fine-tuning job...")
-job = client.fine_tuning.jobs.create(
-    training_file=file_id,
-    model="gpt-4o-mini-2024-07-18",  # base model to fine-tune
-    hyperparameters={
-        "n_epochs": 3,  # number of training passes
-    }
+# Step 1: Upload training data
+file = client.files.create(
+    file=open("train.jsonl", "rb"),
+    purpose="fine-tune"
 )
 
-job_id = job.id
-print(f"✅ Job started: {job_id}")
-print("⏳ Training in progress (this takes 10–60 minutes)...")
+# Step 2: Create fine-tuning job
+job = client.fine_tuning.jobs.create(
+    training_file=file.id,
+    model="gpt-4o-mini-2024-07-18",
+    hyperparameters={"n_epochs": 3}
+)
 
-# Poll for completion
-while True:
-    job_status = client.fine_tuning.jobs.retrieve(job_id)
-    status = job_status.status
+# Step 3: Monitor progress
+status = client.fine_tuning.jobs.retrieve(job.id)
+print(f"Status: {status.status}")
 
-    print(f"  Status: {status}", end="\r")
-
-    if status == "succeeded":
-        model_id = job_status.fine_tuned_model
-        print(f"\n✅ Training complete! Model: {model_id}")
-        break
-    elif status in ("failed", "cancelled"):
-        print(f"\n❌ Training {status}: {job_status.error}")
-        break
-
-    time.sleep(30)
-```
-
----
-
-## Step 4: Evaluate Your Fine-Tuned Model
-
-Compare the base model vs. fine-tuned model on a test set:
-
-```python
-def evaluate_models(test_cases: list[dict], fine_tuned_model: str):
-    base_model = "gpt-4o-mini"
-    results = []
-
-    for test in test_cases:
-        question = test["question"]
-        expected = test["expected"]
-
-        # Base model response
-        base_response = client.chat.completions.create(
-            model=base_model,
-            messages=[{"role": "user", "content": question}]
-        ).choices[0].message.content
-
-        # Fine-tuned model response
-        ft_response = client.chat.completions.create(
-            model=fine_tuned_model,
-            messages=[{"role": "user", "content": question}]
-        ).choices[0].message.content
-
-        results.append({
-            "question": question,
-            "expected": expected,
-            "base_model": base_response,
-            "fine_tuned": ft_response,
-        })
-
-    return results
-```
-
----
-
-## Step 5: Use Your Fine-Tuned Model
-
-```python
-model_id = "ft:gpt-4o-mini:your-org:custom-name:abc123"
-
+# Step 4: Use the fine-tuned model
 response = client.chat.completions.create(
-    model=model_id,
+    model="ft:gpt-4o-mini-2024-07-18:org-id:custom-suffix:id",
     messages=[
-        {"role": "system", "content": "You are a helpful customer support agent."},
-        {"role": "user", "content": "I need help with my account."}
+        {"role": "user", "content": "How do I reset my password?"}
     ]
 )
-
-print(response.choices[0].message.content)
 ```
+
+### Cost Estimation
+
+OpenAI fine-tuning costs (approximate):
+- **Training:** $3.00 / 1M tokens (gpt-4o-mini)
+- **Inference:** ~1.5× the base model cost
+- **Example:** 100 examples × 500 tokens = 50K tokens training ≈ $0.15
+
+### Time
+
+- Small datasets (< 100 examples): 5-10 minutes
+- Large datasets (1000+ examples): 1-4 hours
 
 ---
 
-## Open-Source Fine-Tuning with HuggingFace
+## HuggingFace / TRL Fine-Tuning
 
-For free fine-tuning on open-source models (requires GPU):
+For open-source models, use HuggingFace Transformers + TRL:
 
 ```python
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from trl import SFTTrainer
-from datasets import load_dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from trl import SFTTrainer, SFTConfig
 
-# Load base model (Mistral 7B example)
-model_name = "mistralai/Mistral-7B-v0.1"
-model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.1-8B")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B")
 
-# Load your dataset
-dataset = load_dataset("json", data_files="training_data.jsonl")
-
-# Configure training
-training_args = TrainingArguments(
-    output_dir="./fine_tuned_model",
-    num_train_epochs=3,
+config = SFTConfig(
+    output_dir="./output",
     per_device_train_batch_size=4,
-    gradient_accumulation_steps=4,
-    learning_rate=2e-4,
-    save_strategy="epoch",
-    logging_steps=10,
+    num_train_epochs=3,
+    learning_rate=2e-5,
+    bf16=True,
 )
 
-# Train with SFT (Supervised Fine-Tuning)
 trainer = SFTTrainer(
     model=model,
-    args=training_args,
-    train_dataset=dataset["train"],
-    dataset_text_field="text",
-    max_seq_length=2048,
+    tokenizer=tokenizer,
+    train_dataset=dataset,
+    args=config,
 )
-
 trainer.train()
-trainer.save_model("./my_fine_tuned_model")
 ```
 
-> 💡 Use **Google Colab** (free T4 GPU) for small models. For production, use **RunPod** or **Lambda Labs**.
+### Requirements
+
+- GPU with 16GB+ VRAM (for 8B models)
+- `pip install transformers trl peft accelerate bitsandbytes`
+- For larger models: use QLoRA (4-bit quantization)
 
 ---
 
-## Cost Estimation (OpenAI)
+## Evaluation
 
-| Model | Training Cost | Inference Cost |
-|---|---|---|
-| gpt-4o-mini | $0.30 / 1M tokens | $0.60 input / $2.40 output per 1M |
+### Before Deploying
 
-**Example:** 100 examples × 500 tokens each = 50,000 tokens = **$0.015** to train
+1. **Compare outputs** — Side-by-side with base model
+2. **Test on held-out data** — Never seen during training
+3. **Edge cases** — Unusual inputs, adversarial prompts
+4. **Regression testing** — Fine-tuning shouldn't break existing capabilities
 
----
+### Metrics
 
-## 📁 Files in This Module
-
-| File | Description |
-|---|---|
-| [`prepare_dataset.py`](./prepare_dataset.py) | Generate and validate JSONL datasets |
-| [`finetune_openai.py`](./finetune_openai.py) | Full OpenAI fine-tuning pipeline |
-| [`evaluate.py`](./evaluate.py) | Compare base vs fine-tuned model |
-| [`sample_data.jsonl`](./sample_data.jsonl) | Sample training data to get started |
+- **Accuracy** — For classification tasks
+- **ROUGE/BLEU** — For summarization/translation
+- **Human evaluation** — Best for open-ended generation
+- **A/B testing** — Real-world comparison
 
 ---
 
-## 🎉 Course Complete!
+## Cost Summary
 
-You've covered:
-- ✅ What LLMs are and how they work
-- ✅ Prompt Engineering techniques
-- ✅ Using LLM APIs (OpenAI, Claude, Gemini, Ollama)
-- ✅ Building RAG pipelines
-- ✅ Fine-tuning models on custom data
+| Approach | Setup Cost | Per-Query Cost | Maintenance |
+|----------|-----------|----------------|-------------|
+| Prompt Engineering | $0 | $0.001-0.01 | Low |
+| RAG | $0-100 | $0.01-0.05 | Medium |
+| Fine-Tuning (OpenAI) | $50-500 | $0.002-0.02 | Medium |
+| Fine-Tuning (Self-hosted) | $100-1000 | $0.001-0.01 | High |
 
-**What to build next?**
-- A customer support chatbot with RAG
-- A code review tool fine-tuned on your codebase
-- A document Q&A system for your company
+---
+
+## Try It Yourself
+
+```bash
+# Prepare training data
+python 05-fine-tuning/prepare_dataset.py
+
+# Fine-tune with OpenAI
+python 05-fine-tuning/finetune_openai.py --data sample_data.jsonl
+
+# Check training status
+python 05-fine-tuning/finetune_openai.py --status <job-id>
+```
+
+---
+
+## Course Complete!
+
+Congratulations! You've covered the full LLM development pipeline:
+
+1. **Introduction** — What LLMs are and how they work
+2. **Transformers** — The architecture powering it all
+3. **Prompt Engineering** — Communicating effectively with LLMs
+4. **LLM APIs** — Building with OpenAI, Claude, and more
+5. **RAG** — Giving LLMs access to your data
+6. **Fine-Tuning** — Customizing models for your use case
+
+### What's Next?
+
+Explore the advanced modules:
+- **Module 7:** Advanced Prompting Techniques
+- **Module 8:** AI Agents & Tool Use
+- **Module 9:** Advanced RAG Strategies
+- **Module 10:** Evaluation & Testing
+- **Module 11:** Deployment
+- **Module 12:** Safety & Ethics
+
+---
+
+## Further Reading
+
+- [OpenAI Fine-Tuning Guide](https://platform.openai.com/docs/guides/fine-tuning)
+- [HuggingFace TRL Documentation](https://huggingface.co/docs/trl/)
+- [LoRA: Low-Rank Adaptation](https://arxiv.org/abs/2106.09685)
+- [QLoRA Paper](https://arxiv.org/abs/2305.14314)
+
+## Visual Deep Dive
+
+Continue to **[Module 6 Deep Dive](deep-dive.md)** for choosing between prompts, RAG, and fine-tuning; SFT objectives; LoRA intuition; data leakage; and release evaluation.

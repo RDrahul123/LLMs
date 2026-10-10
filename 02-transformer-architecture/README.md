@@ -1,361 +1,290 @@
-# Module 2 — Transformer Architecture 🟡
+# Module 2: Transformer Architecture
 
-> **Level:** Beginner → Intermediate | **Time:** ~2 hours | **Code:** Python (optional)
+> **Level:** Intermediate | **Time:** ~2 hours | **Prerequisites:** Module 1 | **Code:** attention_demo.py, mini_transformer.py
 
 ---
 
 ## Why Learn This?
 
-Every modern LLM — GPT-4, Claude, Gemini, LLaMA — is built on the **Transformer** architecture introduced in the 2017 paper *"Attention Is All You Need"*.
-
-Understanding it helps you:
-- Intuitively debug why LLMs fail
-- Make better decisions about context windows, chunking, and fine-tuning
-- Read research papers without getting lost
-
-You don't need to build one from scratch. You need to understand how the pieces fit.
+You don't need to understand Transformers to *use* LLMs, but understanding the architecture unlocks:
+- Better prompting (knowing how attention works helps you write prompts)
+- Debugging (why does the model fail on certain tasks?)
+- Building (you'll create your own mini-GPT in this module)
+- Research (every advancement builds on this architecture)
 
 ---
 
 ## The Big Picture
 
-Before the Transformer, models processed text **sequentially** — one word at a time (RNNs, LSTMs). This was slow and struggled with long-range dependencies.
+A Transformer is a stack of identical layers that process all tokens in parallel through **self-attention**. Unlike RNNs (which process sequentially), Transformers can attend to any position simultaneously.
 
-The Transformer processes **all tokens in parallel** and uses **attention** to relate any token to any other token — regardless of distance.
+![Decoder Transformer block with causal attention visualization](../assets/diagrams/transformer-block.svg)
 
 ```
-Input Text
-    │
-    ▼
-┌─────────────────────────────────────────────────────┐
-│                    TRANSFORMER                      │
-│                                                     │
-│  ┌─────────────┐           ┌─────────────────────┐  │
-│  │   ENCODER   │           │       DECODER       │  │
-│  │             │  Context  │                     │  │
-│  │ Understands │ ────────► │ Generates output    │  │
-│  │ the input   │           │ token by token      │  │
-│  └─────────────┘           └─────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼
-Output Text
+Input Tokens:  [The, cat, sat, on, the, mat]
+                    ↓
+            Token Embeddings + Positional Encoding
+                    ↓
+         ┌──────────────────────┐
+         │   Transformer Block  │ ← repeated N times
+         │  ┌────────────────┐  │
+         │  │  Self-Attention │  │
+         │  └───────┬────────┘  │
+         │          ↓           │
+         │  ┌────────────────┐  │
+         │  │  Feed-Forward  │  │
+         │  └───────┬────────┘  │
+         └──────────┬──────────┘
+                    ↓
+              Output Logits → Next Token
 ```
-
-> 💡 LLMs like GPT are **decoder-only** transformers. BERT is **encoder-only**. The original translation model used both.
 
 ---
 
-## Step 1: Tokenization & Embeddings
+## Tokenization & Embeddings
 
 ### Tokenization
-Text is split into **tokens** before the model sees it.
+
+Text is split into sub-word tokens using BPE (Byte-Pair Encoding) or similar algorithms.
 
 ```
-"Hello, world!" → ["Hello", ",", " world", "!"]
-Token IDs      → [15496, 11, 995, 0]
+"tokenization" → ["token", "ization"]
+"unfriendliness" → ["un", "friend", "li", "ness"]
 ```
 
-Each token gets a unique integer ID from the model's **vocabulary** (~50,000–100,000 tokens).
+### Embeddings
 
-### Token Embeddings
-Each token ID is mapped to a **dense vector** (a list of floats) that captures meaning.
-
-```
-"king"   → [0.82, -0.31, 0.14, 0.95, ...]   # 768 or 4096 floats
-"queen"  → [0.79, -0.28, 0.11, 0.91, ...]   # very similar!
-"banana" → [-0.12, 0.67, -0.44, 0.03, ...]  # very different
-```
-
-These vectors are **learned during training** — similar meaning = similar vector direction.
-
-### Positional Encoding
-Since the Transformer processes tokens in parallel (not sequentially), it needs to know **where each token is** in the sequence.
-
-Positional encodings are added to embeddings:
-
-```
-final_input = token_embedding + positional_encoding
-```
-
-Original transformers used sine/cosine functions. Modern LLMs use **Rotary Position Embeddings (RoPE)** — which also handle very long sequences better.
-
----
-
-## Step 2: The Attention Mechanism ⭐
-
-This is the heart of the Transformer. Attention lets every token **look at** and **gather information from** every other token.
-
-### The Intuition
-
-Consider this sentence:
-```
-"The trophy didn't fit in the suitcase because it was too big."
-```
-
-What does **"it"** refer to? The trophy or the suitcase?
-
-Humans resolve this by attending to context clues ("too big" → the thing that doesn't fit → the trophy). Attention does the same mathematically.
-
----
-
-### Queries, Keys, and Values (Q, K, V)
-
-For each token, the model creates three vectors:
-
-| Vector | Role | Analogy |
-|---|---|---|
-| **Query (Q)** | "What am I looking for?" | A search query |
-| **Key (K)** | "What do I contain?" | A document tag/label |
-| **Value (V)** | "What information do I carry?" | The document content |
+Each token is mapped to a dense vector of size `d_model` (e.g., 768 or 4096).
 
 ```python
-# For each token embedding x:
-Q = x @ W_Q   # project to query space
-K = x @ W_K   # project to key space
-V = x @ W_V   # project to value space
+# Conceptually
+embedding = nn.Embedding(vocab_size, d_model)
+
+token_id = 42          # "cat"
+vector = embedding(token_id)  # → [0.12, -0.34, 0.56, ..., 0.78]  (d_model floats)
 ```
 
-### Attention Score Calculation
+The embedding matrix is learned during training — similar words end up with similar vectors.
+
+---
+
+## Positional Encoding
+
+Since Transformers process all tokens in parallel, they have no inherent sense of order. Positional encodings inject position information.
+
+### Sinusoidal (Original Transformer)
 
 ```
-                         Q · Kᵀ
-Attention(Q, K, V) = softmax(───────) · V
-                           √d_k
+PE(pos, 2i)   = sin(pos / 10000^(2i/d_model))
+PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+```
+
+### Learned Positional Embeddings (GPT-style)
+
+```python
+position_embeddings = nn.Embedding(max_seq_len, d_model)
+```
+
+### Rotary Position Embeddings (RoPE) — Modern
+
+Used in LLaMA, Mistral, and most modern LLMs. Rotates query and key vectors in attention to encode relative positions.
+
+---
+
+## Self-Attention Mechanism
+
+Self-attention allows each token to "look at" every other token and decide what's relevant.
+
+### The Math
+
+For each token, we compute three vectors:
+
+```
+Q = X @ W_q    (Query: "What am I looking for?")
+K = X @ W_k    (Key: "What do I contain?")
+V = X @ W_v    (Value: "What information do I pass on?")
+```
+
+Then compute attention:
+
+```
+Attention(Q, K, V) = softmax(Q @ K^T / √d_k) @ V
 ```
 
 Breaking it down:
 
-**1. Compute similarity scores (Q · Kᵀ)**
-```
-Each query token "asks": how relevant is each key token to me?
-Result: a score matrix (seq_len × seq_len)
+1. **Q @ K^T**: Compute similarity between every pair of tokens
+2. **/ √d_k**: Scale to prevent softmax saturation (d_k = dimension of keys)
+3. **softmax**: Convert scores to probabilities (sum to 1)
+4. **@ V**: Weighted sum of values — each token gets a blend of information
 
-         "The"  "cat"  "sat"  "on"
-"The"  [  8.1,   2.3,   0.1,  0.4 ]
-"cat"  [  1.2,   9.4,   1.1,  0.2 ]
-"sat"  [  0.3,   7.2,   8.8,  1.5 ]
-"on"   [  0.1,   0.4,   2.1,  7.6 ]
-```
-
-**2. Scale by √d_k**
-Prevents scores from getting too large (which would make softmax outputs very sharp/saturated).
-
-**3. Apply softmax**
-Converts raw scores → probabilities that sum to 1.
+### Example
 
 ```
-"cat" attends to:
-  "The" → 0.08
-  "cat" → 0.84   ← mostly attends to itself
-  "sat" → 0.06
-  "on"  → 0.02
-```
+Tokens: ["The", "cat", "sat"]
 
-**4. Weighted sum of Values**
+Query of "sat" attends to:
+  "The" → 0.1  (low — "The" isn't very relevant)
+  "cat" → 0.7  (high — "cat" is the subject)
+  "sat" → 0.2  (moderate — self-reference)
 ```
-output for "cat" = 0.08 × V("The") + 0.84 × V("cat") + 0.06 × V("sat") + ...
-```
-
-The result is a new, context-enriched representation of each token.
 
 ---
 
-### Multi-Head Attention
+## Multi-Head Attention
 
-Instead of one attention operation, the Transformer runs **multiple attention "heads" in parallel**, each learning different relationship types.
-
-```
-┌─────────────────────────────────────────────┐
-│              MULTI-HEAD ATTENTION           │
-│                                             │
-│  Head 1: subject-verb relationships         │
-│  Head 2: pronoun-antecedent resolution      │
-│  Head 3: adjective-noun agreement           │
-│  Head 4: long-range dependencies            │
-│  ...                                        │
-│  Head N: (learned automatically)            │
-│                                             │
-│  → Concatenate all heads → Linear layer     │
-└─────────────────────────────────────────────┘
-```
+Instead of one attention operation, we run multiple in parallel (multiple "heads"), each learning different relationships.
 
 ```python
-# Simplified multi-head attention
-import torch
-import torch.nn as nn
+# From 02-transformer-architecture/attention_demo.py
+from transformers import BertTokenizer, BertModel
 
-class MultiHeadAttention(nn.Module):
-    def __init__(self, d_model=512, num_heads=8):
-        super().__init__()
-        self.d_k = d_model // num_heads
-        self.num_heads = num_heads
+model = BertModel.from_pretrained('bert-base-uncased', output_attentions=True)
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+```
 
-        self.W_q = nn.Linear(d_model, d_model)
-        self.W_k = nn.Linear(d_model, d_model)
-        self.W_v = nn.Linear(d_model, d_model)
-        self.W_o = nn.Linear(d_model, d_model)
+Each head might specialize:
+- Head 1: Syntactic relationships (subject-verb)
+- Head 2: Coreference (pronouns → antecedents)
+- Head 3: Adjacent tokens
+- Head 4: Long-range dependencies
 
-    def forward(self, x):
-        B, T, C = x.shape  # batch, sequence length, channels
+The outputs of all heads are concatenated and projected:
 
-        Q = self.W_q(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2)
-        K = self.W_k(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2)
-        V = self.W_v(x).view(B, T, self.num_heads, self.d_k).transpose(1, 2)
-
-        # Scaled dot-product attention
-        scores = (Q @ K.transpose(-2, -1)) / (self.d_k ** 0.5)
-        weights = torch.softmax(scores, dim=-1)
-        attended = weights @ V
-
-        # Concatenate heads
-        attended = attended.transpose(1, 2).contiguous().view(B, T, C)
-        return self.W_o(attended)
+```python
+MultiHead(Q, K, V) = Concat(head_1, ..., head_h) @ W_o
+where head_i = Attention(Q @ W_qi, K @ W_ki, V @ W_vi)
 ```
 
 ---
 
-## Step 3: Feed-Forward Network
+## Feed-Forward Network
 
-After attention, each token passes through a **small neural network independently**:
+After attention, each token is processed independently through a feed-forward network (FFN):
 
 ```
-FFN(x) = ReLU(x · W₁ + b₁) · W₂ + b₂
+FFN(x) = GELU(x @ W_1 + b_1) @ W_2 + b_2
 ```
 
-- Typical size: 4× the model dimension
-  - GPT-2 (768 dim) → FFN has 3072 neurons
-  - LLaMA 3 (4096 dim) → FFN has 16384 neurons
+This is typically 4× wider than `d_model`:
+- `d_model = 4096` → FFN inner dim = `16384`
 
-This is where **most of the model's factual knowledge** is stored. (Attention figures out *which* information to retrieve; FFN stores the actual knowledge.)
+The FFN acts as a "memory" — storing factual knowledge in its weights.
 
 ---
 
-## Step 4: Layer Normalization & Residual Connections
+## Layer Normalization & Residual Connections
 
 ### Residual Connections
-Every sub-layer adds its input back to its output:
+
+Every sub-layer (attention, FFN) has a skip connection:
 
 ```
-output = LayerNorm(x + Attention(x))
-output = LayerNorm(x + FFN(x))
+output = x + SubLayer(x)
 ```
 
-This solves the **vanishing gradient problem** and allows very deep networks to train.
+This prevents vanishing gradients and allows training very deep networks.
 
 ### Layer Normalization
-Normalizes activations to have mean=0, std=1 within each token's representation. Keeps training stable.
 
----
-
-## Putting It All Together: One Transformer Block
+Applied before or after each sub-layer:
 
 ```
-Input Tokens
-     │
-     ▼
-[Token Embeddings + Positional Encoding]
-     │
-     ▼ ┌──────────────────────────────────┐
-     │  │       TRANSFORMER BLOCK         │  × N layers
-     │  │                                 │
-     │  │  ┌─────────────────────────┐    │
-     │  │  │   Multi-Head Attention  │    │
-     │  │  └──────────┬──────────────┘    │
-     │  │             │ + residual        │
-     │  │  ┌──────────▼──────────────┐    │
-     │  │  │     Layer Norm          │    │
-     │  │  └──────────┬──────────────┘    │
-     │  │             │                   │
-     │  │  ┌──────────▼──────────────┐    │
-     │  │  │   Feed-Forward Network  │    │
-     │  │  └──────────┬──────────────┘    │
-     │  │             │ + residual        │
-     │  │  ┌──────────▼──────────────┐    │
-     │  │  │     Layer Norm          │    │
-     │  │  └─────────────────────────┘    │
-     │  └──────────────────────────────────┘
-     │
-     ▼
-[Output Layer → Vocabulary Logits]
-     │
-     ▼
-Next Token Prediction
+output = LayerNorm(x + SubLayer(x))   # Post-norm (original)
+output = x + SubLayer(LayerNorm(x))   # Pre-norm (modern, more stable)
 ```
 
----
-
-## Model Size = Depth × Width
-
-| Model | Layers (N) | Dimension (d) | Heads | Parameters |
-|---|---|---|---|---|
-| GPT-2 Small | 12 | 768 | 12 | 117M |
-| GPT-2 XL | 48 | 1600 | 25 | 1.5B |
-| LLaMA 3 8B | 32 | 4096 | 32 | 8B |
-| LLaMA 3 70B | 80 | 8192 | 64 | 70B |
-| GPT-4 (est.) | ~120 | ~12288 | ~96 | ~1.8T |
+Modern LLMs use **RMSNorm** (Root Mean Square Normalization) for efficiency.
 
 ---
 
-## Causal Masking (Decoder-Only Models)
+## Causal Masking
 
-LLMs like GPT use **causal masking** — when predicting token N, they can only attend to tokens 1 through N-1. Future tokens are masked.
+In decoder-only models (GPT, Claude), tokens can only attend to **previous** tokens — not future ones. This is enforced with a causal mask.
 
 ```
-         "The"  "cat"  "sat"
-"The"  [  ✅,    ❌,    ❌  ]   ← can only see itself
-"cat"  [  ✅,    ✅,    ❌  ]   ← can see "The" and itself
-"sat"  [  ✅,    ✅,    ✅  ]   ← can see all previous
+Token: ["The", "cat", "sat"]
+
+Attention matrix:
+           The   cat   sat
+The    [  1     0     0  ]    "The" can only see "The"
+cat    [  1     1     0  ]    "cat" sees "The" and itself
+sat    [  1     1     1  ]    "sat" sees everything
 ```
 
-This is implemented by adding `-inf` to masked positions before softmax (so they become 0 after softmax).
+Masked positions get `-inf` before softmax, so they receive zero attention.
 
 ---
 
-## Key Innovations in Modern LLMs
+## Model Sizes
 
-| Innovation | What It Solves | Used In |
-|---|---|---|
-| **RoPE** (Rotary Position Embeddings) | Better long-context handling | LLaMA, Mistral |
-| **GQA** (Grouped Query Attention) | Faster inference, less memory | LLaMA 3, Gemma |
-| **SwiGLU** (activation function) | Better FFN performance | LLaMA, PaLM |
-| **Flash Attention** | Memory-efficient attention | Most modern LLMs |
-| **KV Cache** | Faster generation (reuse past keys/values) | All inference |
-
----
-
-## Summary
-
-| Component | What It Does |
-|---|---|
-| **Tokenization** | Converts text → integer IDs |
-| **Embeddings** | Maps token IDs → semantic vectors |
-| **Positional Encoding** | Tells model where each token is |
-| **Multi-Head Attention** | Each token gathers context from all others |
-| **Feed-Forward Network** | Stores knowledge, transforms representations |
-| **Residual + LayerNorm** | Enables stable deep training |
-| **Causal Mask** | Prevents peeking at future tokens |
-| **N stacked blocks** | Progressively refines representations |
+| Model | Layers | d_model | Heads | Parameters | Context |
+|-------|--------|---------|-------|------------|---------|
+| GPT-2 | 48 | 1600 | 25 | 1.5B | 1,024 |
+| LLaMA 3 8B | 32 | 4096 | 32 | 8B | 8,192 |
+| LLaMA 3 70B | 80 | 8192 | 64 | 70B | 8,192 |
+| GPT-4 (est.) | ~120 | ~12,288 | ~96 | ~200B | 128,000 |
 
 ---
 
-## 📁 Files in This Module
+## Modern Innovations
 
-| File | Description |
-|---|---|
-| [`attention_demo.py`](./attention_demo.py) | Visualize attention weights on real text |
-| [`mini_transformer.py`](./mini_transformer.py) | A tiny GPT built from scratch (~150 lines) |
+### RoPE (Rotary Position Embeddings)
+
+Instead of adding position info, RoPE rotates Q and K vectors by angles proportional to position. This allows the model to learn relative positions naturally.
+
+### Grouped-Query Attention (GQA)
+
+Instead of separate K, V for each head (MHA), GQA shares K, V across groups of query heads. This reduces memory while maintaining quality.
+
+- **MHA:** Each head has its own Q, K, V
+- **GQA:** Heads share K, V within groups (LLaMA 2 70B, Mistral)
+- **MQA:** All heads share one K, V (fastest, lower quality)
+
+### Flash Attention
+
+An algorithmic optimization that restructures the attention computation to be memory-efficient, running 2-4× faster on GPUs by using tiling and avoiding materializing the full N×N attention matrix.
 
 ---
 
-## 📖 Further Reading
+## Try It Yourself
 
-- [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) — the original 2017 paper
-- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — best visual explainer ever made
-- [Andrej Karpathy — Let's build GPT](https://www.youtube.com/watch?v=kCc8FmEb1nY) — build one from scratch in video form
+### attention_demo.py — Visualize BERT Attention
+
+```bash
+python 02-transformer-architecture/attention_demo.py --text "The cat sat on the mat because it was tired"
+```
+
+This shows how different layers and heads attend to different relationships.
+
+### mini_transformer.py — Build a Mini-GPT
+
+```bash
+python 02-transformer-architecture/mini_transformer.py --train
+python 02-transformer-architecture/mini_transformer.py --generate
+```
+
+Train a small GPT on Shakespeare text and generate new passages.
 
 ---
 
-## ✅ What's Next?
+## What's Next?
 
-👉 **[Module 3 — Prompt Engineering](../03-prompt-engineering/README.md)**
+You now understand how Transformers work internally. Next, we'll learn how to effectively communicate with these models.
+
+**→ [Module 3: Prompt Engineering](../02-prompt-engineering/README.md)**
+
+Learn the art and science of crafting prompts that get the best results from LLMs.
+
+---
+
+## References
+
+- [Vaswani et al., "Attention Is All You Need"](https://arxiv.org/abs/1706.03762)
+- [Jay Alammar, "The Illustrated Transformer"](https://jalammar.github.io/illustrated-transformer/)
+- [Andrej Karpathy, "Let's build GPT from scratch"](https://www.youtube.com/watch?v=kCc8FmEb1nY)
+- [Lilian Weng, "Attention? Attention!"](https://lilianweng.github.io/posts/2018-06-24-attention/)
+
+## Visual Deep Dive
+
+Continue to **[Module 2 Deep Dive](deep-dive.md)** for tensor shapes, attention math, causal masks, residual paths, training loss, KV caching, and knowledge checks.

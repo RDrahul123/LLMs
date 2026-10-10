@@ -1,98 +1,113 @@
 """
-Module 3: Simple Terminal Chatbot
-===================================
-A multi-turn chatbot that remembers conversation history.
+Terminal Chatbot
+================
+A multi-turn chatbot with streaming responses.
+
+Install: pip install openai
 
 Usage:
     python chatbot.py
-    python chatbot.py --model gpt-4o --system "You are a pirate."
+    python chatbot.py --model gpt-4o
+    python chatbot.py --system "You are a pirate. Respond in pirate dialect."
+    python chatbot.py --model llama3.1:8b  # with Ollama running
 """
 
 import argparse
-from openai import OpenAI
-from dotenv import load_dotenv
+import sys
 
-load_dotenv()
-client = OpenAI()
+try:
+    from openai import OpenAI
+except ImportError:
+    print("Install openai: pip install openai")
+    sys.exit(1)
 
 
-def run_chatbot(model: str = "gpt-4o-mini", system_prompt: str = "You are a helpful assistant."):
-    """Run an interactive terminal chatbot."""
-    messages = [{"role": "system", "content": system_prompt}]
+def create_client(model: str) -> OpenAI:
+    """Create OpenAI client. Uses Ollama if model looks local."""
+    if ":" in model or model.startswith("llama"):
+        return OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+    return OpenAI()
 
-    print(f"\n🤖 Chatbot ready! (model: {model})")
-    print(f"📝 System: {system_prompt}")
-    print("Type 'quit' or 'exit' to stop. Type 'clear' to reset conversation.\n")
-    print("-" * 50)
+
+def chat(client: OpenAI, model: str, system_prompt: str, history: list):
+    """Send a message and stream the response."""
+    messages = [{"role": "system", "content": system_prompt}] + history
+
+    try:
+        stream = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True,
+        )
+
+        response = ""
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                text = chunk.choices[0].delta.content
+                print(text, end="", flush=True)
+                response += text
+        print()
+        return response
+    except Exception as e:
+        print(f"\nError: {e}")
+        return None
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Terminal chatbot with streaming")
+    parser.add_argument("--model", type=str, default="gpt-4o-mini", help="Model to use")
+    parser.add_argument("--system", type=str, default="You are a helpful assistant.", help="System prompt")
+    args = parser.parse_args()
+
+    client = create_client(args.model)
+    history = []
+
+    print("=" * 50)
+    print("  TERMINAL CHATBOT")
+    print(f"  Model: {args.model}")
+    print("  Commands: quit, exit, clear, history")
+    print("=" * 50)
+    print()
 
     while True:
         try:
-            user_input = input("\nYou: ").strip()
-        except (KeyboardInterrupt, EOFError):
-            print("\n\nGoodbye!")
+            user_input = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye!")
             break
 
         if not user_input:
             continue
 
         if user_input.lower() in ("quit", "exit"):
-            print("\nGoodbye!")
+            print("Goodbye!")
             break
 
         if user_input.lower() == "clear":
-            messages = [{"role": "system", "content": system_prompt}]
-            print("🔄 Conversation cleared.\n")
+            history.clear()
+            print("[Conversation cleared]\n")
             continue
 
         if user_input.lower() == "history":
-            print("\n📜 Conversation History:")
-            for msg in messages[1:]:  # skip system message
-                role = "You" if msg["role"] == "user" else "AI"
-                print(f"  {role}: {msg['content'][:100]}...")
+            print()
+            for msg in history:
+                role = "You" if msg["role"] == "user" else "Bot"
+                print(f"  {role}: {msg['content'][:80]}...")
+            print()
             continue
 
-        # Add user message to history
-        messages.append({"role": "user", "content": user_input})
+        history.append({"role": "user", "content": user_input})
 
-        # Get response (streaming)
-        print("\nAI: ", end="", flush=True)
-        full_response = ""
+        print("Bot: ", end="", flush=True)
+        response = chat(client, args.model, args.system, history)
 
-        try:
-            stream = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-                stream=True,
-            )
+        if response:
+            history.append({"role": "assistant", "content": response})
+        else:
+            history.pop()  # Remove failed user message
 
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    token = chunk.choices[0].delta.content
-                    print(token, end="", flush=True)
-                    full_response += token
-
-        except Exception as e:
-            print(f"\n❌ Error: {e}")
-            messages.pop()  # remove the failed user message
-            continue
-
-        print()  # newline after response
-
-        # Add AI response to history
-        messages.append({"role": "assistant", "content": full_response})
+        print()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="LLM Terminal Chatbot")
-    parser.add_argument(
-        "--model", default="gpt-4o-mini",
-        help="Model to use (default: gpt-4o-mini)"
-    )
-    parser.add_argument(
-        "--system", default="You are a helpful assistant.",
-        help="System prompt"
-    )
-    args = parser.parse_args()
-
-    run_chatbot(model=args.model, system_prompt=args.system)
+    main()

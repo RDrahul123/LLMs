@@ -1,28 +1,27 @@
 """
-Module 2: Attention Weight Visualization
-==========================================
-Visualizes how attention flows between tokens using a HuggingFace model.
+Attention Visualization Demo
+============================
+Uses BERT to visualize attention weights across layers and heads.
+
+Install: pip install transformers torch bertviz matplotlib
 
 Usage:
     python attention_demo.py
-    python attention_demo.py --text "The cat sat on the mat"
-
-Requirements:
-    pip install transformers torch bertviz
+    python attention_demo.py --text "The cat sat on the mat because it was tired"
 """
 
 import argparse
+import math
+import sys
+
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import BertTokenizer, BertModel
 
 
 def get_attention_weights(text: str, model_name: str = "bert-base-uncased"):
-    """
-    Extract attention weights from a transformer model.
-    Returns tokens and attention matrices for all layers/heads.
-    """
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModel.from_pretrained(model_name, output_attentions=True)
+    """Extract attention weights from BERT for the given text."""
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    model = BertModel.from_pretrained(model_name, output_attentions=True)
     model.eval()
 
     inputs = tokenizer(text, return_tensors="pt")
@@ -31,116 +30,152 @@ def get_attention_weights(text: str, model_name: str = "bert-base-uncased"):
     with torch.no_grad():
         outputs = model(**inputs)
 
-    # outputs.attentions: tuple of (num_layers,) each [batch, heads, seq, seq]
-    return tokens, outputs.attentions
+    attentions = outputs.attentions  # tuple of (batch, heads, seq, seq)
+    return attentions, tokens
 
 
-def print_attention_heatmap(tokens: list, attention_layer, head: int = 0):
-    """Print a text-based attention heatmap for a specific head."""
-    attn = attention_layer[0, head].numpy()  # [seq_len, seq_len]
-    seq_len = len(tokens)
+def print_attention_heatmap(attention, tokens, layer=None, head=None):
+    """Print a text-based heatmap of attention weights using block characters."""
+    blocks = " ░▒▓█"
 
-    # Header row
-    col_width = 8
-    header = " " * 12 + "".join(t[:col_width].ljust(col_width) for t in tokens)
+    if layer is not None and head is not None:
+        attn = attention[layer][0, head].numpy()
+        print(f"\n--- Layer {layer}, Head {head} ---")
+        _print_matrix(attn, tokens, blocks)
+    else:
+        for l in range(len(attention)):
+            for h in range(attention[l].shape[1]):
+                attn = attention[l][0, h].numpy()
+                print(f"\n--- Layer {l}, Head {h} ---")
+                _print_matrix(attn, tokens, blocks)
+
+
+def _print_matrix(attn, tokens, blocks):
+    """Print a single attention matrix as a text heatmap."""
+    n = len(tokens)
+    max_token_len = max(len(t) for t in tokens)
+
+    # Header
+    header = " " * (max_token_len + 1)
+    for j in range(n):
+        header += f"{j:>3}"
     print(header)
-    print("-" * len(header))
+    print(" " * (max_token_len + 1) + "-" * (n * 3))
 
-    for i, row_token in enumerate(tokens):
-        row_label = row_token[:10].ljust(12)
-        row_values = ""
-        for j in range(seq_len):
-            score = attn[i, j]
-            # Use block characters to show intensity
-            if score > 0.5:
-                block = "█"
-            elif score > 0.3:
-                block = "▓"
-            elif score > 0.15:
-                block = "▒"
-            elif score > 0.05:
-                block = "░"
-            else:
-                block = "·"
-            row_values += (block + f"{score:.2f}").ljust(col_width)
-        print(row_label + row_values)
+    for i in range(n):
+        row = f"{tokens[i]:>{max_token_len}} |"
+        for j in range(n):
+            val = attn[i][j]
+            block_idx = min(int(val * (len(blocks) - 1)), len(blocks) - 1)
+            row += f" {blocks[block_idx]} "
+        print(row)
 
 
-def print_top_attentions(tokens: list, attention_layer, head: int = 0, top_k: int = 5):
-    """Print the top-K attention pairs for a given head."""
-    attn = attention_layer[0, head].numpy()
-    seq_len = len(tokens)
+def print_top_attentions(attention, tokens, top_k: int = 5):
+    """Print the strongest attention connections across all layers and heads."""
+    connections = []
 
-    pairs = []
-    for i in range(seq_len):
-        for j in range(seq_len):
-            if i != j:  # skip self-attention
-                pairs.append((tokens[i], tokens[j], attn[i, j]))
+    for l in range(len(attention)):
+        for h in range(attention[l].shape[1]):
+            attn = attention[l][0, h].numpy()
+            n = attn.shape[0]
+            for i in range(n):
+                for j in range(n):
+                    if i != j:
+                        connections.append((attn[i][j], l, h, tokens[i], tokens[j]))
 
-    pairs.sort(key=lambda x: x[2], reverse=True)
+    connections.sort(reverse=True)
 
-    print(f"\nTop {top_k} attention pairs (Head {head}):")
-    print(f"  {'FROM':<12} → {'TO':<12}  WEIGHT")
-    print(f"  {'-'*12}   {'-'*12}  ------")
-    for from_tok, to_tok, weight in pairs[:top_k]:
-        bar = "█" * int(weight * 20)
-        print(f"  {from_tok:<12} → {to_tok:<12}  {weight:.3f} {bar}")
-
-
-def analyze_text(text: str):
-    """Run full attention analysis on input text."""
-    print(f"\n📝 Text: '{text}'")
-    print("=" * 60)
-    print("Loading BERT model (first run downloads ~400MB)...")
-
-    tokens, attentions = get_attention_weights(text)
-
-    num_layers = len(attentions)
-    num_heads = attentions[0].shape[1]
-
-    print(f"\n✅ Model loaded!")
-    print(f"   Tokens ({len(tokens)}): {tokens}")
-    print(f"   Layers: {num_layers}")
-    print(f"   Heads per layer: {num_heads}")
-
-    # Show attention for layer 0, head 0
     print(f"\n{'='*60}")
-    print(f"ATTENTION HEATMAP — Layer 1, Head 1")
+    print(f" TOP {top_k} ATTENTION CONNECTIONS")
     print(f"{'='*60}")
-    print_attention_heatmap(tokens, attentions[0], head=0)
+    print(f"{'Score':>6}  {'Layer':>5}  {'Head':>4}  {'From':<15} {'To':<15}")
+    print(f"{'-'*60}")
 
-    # Show top attention pairs across a few heads
+    for score, layer, head, src, dst in connections[:top_k]:
+        print(f"{score:6.4f}  {layer:5d}  {head:4d}  {src:<15} {dst:<15}")
+
+
+def analyze_text(text: str, model_name: str = "bert-base-uncased"):
+    """Full analysis: heatmap, top attentions, and entropy."""
+    print(f"Analyzing: \"{text}\"\n")
+    print("Loading BERT... (this may take a moment on first run)\n")
+
+    attentions, tokens = get_attention_weights(text, model_name)
+
+    # Show tokenization
+    print(f"Tokens ({len(tokens)}): {tokens}\n")
+
+    # Show selected attention heatmaps (layer 0 head 0, layer 6 head 3, last layer head 0)
+    print_attention_heatmap(attentions, tokens, layer=0, head=0)
+    if attentions[0].shape[1] > 3:
+        print_attention_heatmap(attentions, tokens, layer=min(6, len(attentions) - 1), head=3)
+    print_attention_heatmap(attentions, tokens, layer=len(attentions) - 1, head=0)
+
+    # Top attention connections
+    print_top_attentions(attentions, tokens, top_k=10)
+
+    # Entropy analysis
+    print_entropy_analysis(attentions, tokens)
+
+
+def print_entropy_analysis(attention, tokens):
+    """Compute and display attention entropy across layers."""
     print(f"\n{'='*60}")
-    print(f"TOP ATTENTION PAIRS — Layer 1")
-    print(f"{'='*60}")
-    for head in range(min(3, num_heads)):
-        print_top_attentions(tokens, attentions[0], head=head, top_k=3)
+    print(" ATTENTION ENTROPY BY LAYER")
+    print(" (Low = focused, High = spread out)")
+    print(f"{'='*60}\n")
 
-    # Show how attention evolves across layers
-    print(f"\n{'='*60}")
-    print("ATTENTION COMPLEXITY ACROSS LAYERS")
-    print("(entropy — higher = more distributed attention)")
-    print(f"{'='*60}")
-    import numpy as np
-    for layer_idx in range(num_layers):
-        attn = attentions[layer_idx][0, 0].numpy()
-        # Compute entropy of attention distribution
-        entropy = -np.sum(attn * np.log(attn + 1e-9), axis=-1).mean()
-        bar = "█" * int(entropy * 5)
-        print(f"  Layer {layer_idx + 1:2d}: {bar} ({entropy:.2f})")
+    n_layers = len(attention)
+    n_heads = attention[0].shape[1]
 
-    print("\n💡 Tip: Use BertViz for interactive attention visualization:")
-    print("   from bertviz import head_view")
-    print("   head_view(attentions, tokens)")
+    for l in range(n_layers):
+        entropies = []
+        for h in range(n_heads):
+            attn = attention[l][0, h].numpy()
+            # Average entropy across all source tokens
+            avg_entropy = 0.0
+            n = attn.shape[0]
+            for i in range(n):
+                row = attn[i]
+                # Add epsilon to avoid log(0)
+                row = row + 1e-10
+                avg_entropy += -sum(row[j] * math.log2(row[j]) for j in range(len(row)))
+            avg_entropy /= n
+            entropies.append(avg_entropy)
+
+        bar_width = 40
+        avg_e = sum(entropies) / len(entropies)
+        filled = int(avg_e / math.log2(len(tokens)) * bar_width) if len(tokens) > 1 else 0
+        filled = min(filled, bar_width)
+        bar = "█" * filled + "░" * (bar_width - filled)
+
+        print(f"  Layer {l:2d}: [{bar}] avg={avg_e:.3f}")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Visualize transformer attention weights")
+def main():
+    parser = argparse.ArgumentParser(description="Visualize BERT attention weights")
     parser.add_argument(
         "--text",
-        default="The trophy didn't fit in the suitcase because it was too big.",
-        help="Text to analyze"
+        type=str,
+        default="The cat sat on the mat because it was tired",
+        help="Text to analyze",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="bert-base-uncased",
+        help="HuggingFace model name",
     )
     args = parser.parse_args()
 
-    analyze_text(args.text)
+    try:
+        analyze_text(args.text, args.model)
+    except Exception as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        print("Make sure you have: pip install transformers torch", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,121 +1,97 @@
-# Module 3 — LLM APIs 🟠
+# Module 4: Working with LLM APIs
 
-> **Level:** Beginner → Intermediate | **Time:** ~2 hours | **Code:** Python
+> **Level:** Intermediate | **Time:** ~2 hours | **Prerequisites:** Module 3 | **Code:** chatbot.py, openai_examples.py, claude_examples.py, streaming_demo.py
 
 ---
 
 ## Why Use LLM APIs?
 
-Instead of running models locally (requires expensive GPUs), you can call state-of-the-art models via API — pay only for what you use.
+Instead of running models yourself, LLM APIs let you access state-of-the-art models with a simple HTTP call. Benefits:
 
-```
-Your App  →  HTTP Request  →  LLM API Server  →  AI Response  →  Your App
-```
-
----
-
-## APIs Covered in This Module
-
-| Provider | Model | Strengths |
-|---|---|---|
-| **OpenAI** | GPT-4o, GPT-4o-mini | Best overall, huge ecosystem |
-| **Anthropic** | Claude 3.5 Sonnet | Long context, safety, reasoning |
-| **Google** | Gemini 1.5 Pro | Multimodal, massive context |
-| **Ollama** | LLaMA 3, Mistral | Free, runs locally, private |
+- No GPU required — runs on the provider's servers
+- Pay only for what you use
+- Always the latest model version
+- Simple authentication and billing
 
 ---
 
-## Setup
+## API Overview
 
-### 1. Install Dependencies
-```bash
-pip install openai anthropic google-generativeai python-dotenv
-```
+| Provider | Library / interface | Example model family | Cost model |
+|----------|----------------------|----------------------|------------|
+| OpenAI | `openai` | GPT family | Provider pricing varies by model and may change |
+| Anthropic | `anthropic` | Claude family | Provider pricing varies by model and may change |
+| Google | `google-genai` | Gemini family | Provider pricing varies by model and may change |
+| Local | Ollama API | Open-weight models | No per-token API fee; compute, power, and hosting still have costs |
 
-### 2. Get API Keys
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/
-- Google: https://aistudio.google.com/
+Use each provider's current pricing and model documentation when estimating costs. The API snippets below are learning examples; verify model identifiers and feature availability before deploying an application.
 
-### 3. Create `.env` file
-```bash
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=AI...
-```
+![How an API request moves between your application and a model provider](../assets/diagrams/llm-lifecycle.svg)
 
 ---
 
 ## OpenAI API
 
-### Basic Completion
+### Basic Request
+
 ```python
 from openai import OpenAI
 
-client = OpenAI()  # reads OPENAI_API_KEY from env
+client = OpenAI()  # Uses OPENAI_API_KEY env var
 
 response = client.chat.completions.create(
-    model="gpt-4o-mini",          # cheapest smart model
+    model="gpt-4o-mini",
     messages=[
-        {"role": "user", "content": "Explain recursion in one paragraph."}
-    ],
-    temperature=0.7,
-    max_tokens=500
+        {"role": "user", "content": "What is the capital of France?"}
+    ]
 )
-
 print(response.choices[0].message.content)
+# → "The capital of France is Paris."
 ```
 
-### With System Prompt
+### System Prompt
+
 ```python
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[
-        {"role": "system", "content": "You are a friendly Python tutor."},
-        {"role": "user", "content": "What's a list comprehension?"}
+        {"role": "system", "content": "You are a helpful math tutor. Explain step by step."},
+        {"role": "user", "content": "What is 15% of 200?"}
     ]
 )
 ```
 
 ### Multi-Turn Conversation
+
 ```python
-messages = [{"role": "system", "content": "You are a helpful assistant."}]
+messages = [
+    {"role": "system", "content": "You are a friendly cooking assistant."},
+    {"role": "user", "content": "What's a good pasta recipe?"},
+]
 
-while True:
-    user_input = input("You: ")
-    if user_input.lower() == "quit":
-        break
+# First turn
+response = client.chat.completions.create(
+    model="gpt-4o-mini", messages=messages
+)
+messages.append({"role": "assistant", "content": response.choices[0].message.content})
 
-    messages.append({"role": "user", "content": user_input})
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages
-    )
-
-    reply = response.choices[0].message.content
-    messages.append({"role": "assistant", "content": reply})
-    print(f"AI: {reply}\n")
+# Second turn — model remembers context
+messages.append({"role": "user", "content": "Can I make it vegetarian?"})
+response = client.chat.completions.create(
+    model="gpt-4o-mini", messages=messages
+)
 ```
 
-### Structured Output (JSON Mode)
-```python
-import json
+### JSON Mode
 
+```python
 response = client.chat.completions.create(
     model="gpt-4o-mini",
     messages=[
-        {
-            "role": "user",
-            "content": "Extract: name, email from: 'Hi, I am John Doe, john@example.com'"
-        }
+        {"role": "user", "content": "List 3 planets with their moons. Return as JSON."}
     ],
     response_format={"type": "json_object"}
 )
-
-data = json.loads(response.choices[0].message.content)
-print(data["name"])   # John Doe
-print(data["email"])  # john@example.com
 ```
 
 ---
@@ -125,135 +101,142 @@ print(data["email"])  # john@example.com
 ```python
 import anthropic
 
-client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
+client = anthropic.Anthropic()  # Uses ANTHROPIC_API_KEY env var
 
 message = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
-    system="You are a data science expert.",
+    system="You are a helpful coding assistant.",
     messages=[
-        {"role": "user", "content": "What's the difference between L1 and L2 regularization?"}
+        {"role": "user", "content": "Explain the difference between async and threading in Python."}
     ]
 )
-
 print(message.content[0].text)
 ```
 
-### Claude with Long Context
-Claude shines with large documents (up to 200k tokens):
-
-```python
-with open("long_document.txt", "r") as f:
-    document = f.read()
-
-message = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
-    max_tokens=2048,
-    messages=[
-        {
-            "role": "user",
-            "content": f"Here is a document:\n\n{document}\n\nSummarize the top 5 key points."
-        }
-    ]
-)
-```
+Key differences from OpenAI:
+- Uses `messages.create()` instead of `chat.completions.create()`
+- System prompt is a separate parameter (not in messages)
+- Response is `message.content[0].text`
 
 ---
 
 ## Google Gemini API
 
 ```python
-import google.generativeai as genai
-import os
+from google import genai
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.Client()  # Uses GOOGLE_API_KEY env var
 
-model = genai.GenerativeModel("gemini-1.5-flash")
-
-response = model.generate_content("Write a haiku about machine learning.")
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents="What are the key differences between Python and JavaScript?",
+)
 print(response.text)
 ```
 
 ---
 
-## Ollama (Free, Local, Private)
+## Ollama (Local, Free)
 
-Run models 100% on your machine — no API key needed.
+Run open-source models locally with no API key.
 
-### Install Ollama
 ```bash
-# MacOS/Linux
-curl -fsSL https://ollama.ai/install.sh | sh
-
+# Install Ollama: https://ollama.com
 # Pull a model
-ollama pull llama3
-ollama pull mistral
+ollama pull llama3.1:8b
+
+# Run
+ollama run llama3.1:8b
 ```
 
-### Use with Python
+### Python with Ollama
+
 ```python
-from openai import OpenAI  # Ollama uses OpenAI-compatible API
+import requests
 
-client = OpenAI(
-    base_url="http://localhost:11434/v1",
-    api_key="ollama"  # required but unused
-)
-
-response = client.chat.completions.create(
-    model="llama3",
-    messages=[
-        {"role": "user", "content": "What is the capital of France?"}
-    ]
-)
-
-print(response.choices[0].message.content)
+response = requests.post("http://localhost:11434/api/chat", json={
+    "model": "llama3.1:8b",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": False
+})
+print(response.json()["message"]["content"])
 ```
 
 ---
 
 ## Streaming Responses
 
-Instead of waiting for the full response, stream it token-by-token:
+Streaming returns tokens as they're generated, providing a better user experience.
+
+### OpenAI Streaming
 
 ```python
 stream = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "Write a short story about a robot."}],
+    messages=[{"role": "user", "content": "Tell me a story"}],
     stream=True
 )
 
 for chunk in stream:
-    if chunk.choices[0].delta.content is not None:
+    if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="", flush=True)
+print()
+```
+
+### Anthropic Streaming
+
+```python
+with client.messages.stream(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Tell me a story"}]
+) as stream:
+    for text in stream.text_stream:
+        print(text, end="", flush=True)
+print()
 ```
 
 ---
 
-## Cost Comparison (Approximate, as of 2024)
+## Cost Comparison
 
-| Model | Input (per 1M tokens) | Output (per 1M tokens) |
-|---|---|---|
-| GPT-4o | $5.00 | $15.00 |
-| GPT-4o-mini | $0.15 | $0.60 |
-| Claude 3.5 Sonnet | $3.00 | $15.00 |
-| Gemini 1.5 Flash | $0.075 | $0.30 |
-| Ollama (local) | **Free** | **Free** |
-
-> 💡 For development/learning, use `gpt-4o-mini` or `gemini-flash` — they're nearly as good and 20x cheaper.
+Model prices, limits, and names change over time. Compare current provider pricing for both input and output tokens, caching, batch processing, and any tool or multimodal usage. For development, begin with an inexpensive model that meets the quality bar; do not select production models by price alone—run the evaluation set from Module 10.
 
 ---
 
-## 📁 Files in This Module
+## Try It Yourself
 
-| File | Description |
-|---|---|
-| [`openai_examples.py`](./openai_examples.py) | Full OpenAI API examples |
-| [`claude_examples.py`](./claude_examples.py) | Anthropic Claude examples |
-| [`chatbot.py`](./chatbot.py) | Complete terminal chatbot |
-| [`streaming_demo.py`](./streaming_demo.py) | Streaming response demo |
+```bash
+# Run the chatbot
+python 03-llm-apis/chatbot.py --model gpt-4o-mini
+
+# Run with a custom system prompt
+python 03-llm-apis/chatbot.py --model gpt-4o-mini --system "You are a pirate. Respond in pirate dialect."
+
+# Run with local Ollama
+python 03-llm-apis/chatbot.py --model llama3.1:8b
+```
 
 ---
 
-## ✅ What's Next?
+## What's Next?
 
-👉 **[Module 4 — RAG](../04-rag/README.md)**
+You can now build with LLM APIs. But what if your model needs access to your own data?
+
+**→ [Module 5: Retrieval-Augmented Generation (RAG)](../04-rag/README.md)**
+
+Learn how to give LLMs access to documents, databases, and your own knowledge base.
+
+---
+
+## Further Reading
+
+- [OpenAI API Reference](https://platform.openai.com/docs/api-reference)
+- [Anthropic API Reference](https://docs.anthropic.com/en/api/messages)
+- [Ollama Documentation](https://ollama.com/library)
+- [LiteLLM — Unified API for 100+ LLMs](https://github.com/BerriAI/litellm)
+
+## Visual Deep Dive
+
+Continue to **[Module 4 Deep Dive](deep-dive.md)** for request lifecycles, stateless conversation history, streaming, tool-call round trips, retries, and cost estimation.

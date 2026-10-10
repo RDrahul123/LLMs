@@ -1,69 +1,91 @@
-# Contributing to LLM Course 🤝
+# Contributing to LLMs Course
 
-Thank you for your interest in contributing! This guide will help you get started.
+Thanks for your interest in contributing! This guide will help you get started.
 
----
+## How to Contribute
 
-## Ways to Contribute
+### Reporting Issues
 
-- 🐛 **Fix a bug** — wrong code, typo, broken link
-- 📝 **Improve explanations** — clearer wording, better examples
-- 💡 **Add new examples** — more code examples for existing modules
-- 🆕 **Propose a new module** — open an issue first to discuss
-- 🌍 **Translate** — help make this accessible in other languages
+- Check existing issues before creating a new one
+- Include: what you expected, what happened, steps to reproduce
+- Mention your Python version and OS
 
----
+### Suggesting Improvements
 
-## Getting Started
+- Open an issue describing the improvement
+- Include why it would be helpful
+- Reference any related resources
 
-1. **Fork** the repository
-2. **Clone** your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/llm-course.git
-   cd llm-course
-   ```
-3. **Create a branch**:
-   ```bash
-   git checkout -b fix/typo-in-module-2
-   # or
-   git checkout -b feat/add-langchain-examples
-   ```
-4. **Make your changes**
-5. **Test** any code changes to make sure they run
-6. **Commit** with a clear message:
-   ```bash
-   git commit -m "fix: correct chain-of-thought example in module 2"
-   ```
-7. **Push** and open a **Pull Request**
+### Submitting Code
 
----
+1. Fork the repository
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Make your changes
+4. Test your code (see below)
+5. Submit a pull request
 
-## Code Guidelines
+## Code Standards
 
-- All Python code should work with Python 3.9+
-- Follow PEP 8 style conventions
-- Add comments explaining *why*, not just *what*
-- Include a docstring for each function
-- Test your code before submitting
+### Python
 
----
+- Follow PEP 8 style
+- Use type hints where practical
+- Include docstrings for functions and classes
+- Keep files under 500 lines (split if longer)
+- Use meaningful variable names
 
-## Markdown Guidelines
+### README Files
 
-- Use clear headings (H2 for sections, H3 for subsections)
-- Include code blocks with language tags (` ```python `)
-- Keep lines under 100 characters where possible
-- Add a "What's Next?" section at the end of each module
+- Use clear, concise language
+- Include code examples
+- Link to related modules
+- Keep formatting consistent with existing READMEs
 
----
+### Dependencies
 
-## Reporting Issues
+- Minimize new dependencies
+- Add new packages to `requirements.txt`
+- Pin versions when possible
 
-Found something wrong? [Open an issue](../../issues/new) and include:
-- Which module/file has the problem
-- What the issue is
-- What you expected instead
+## Testing
 
----
+Before submitting a PR:
 
-Thank you for helping make AI education free and accessible! 🙏
+```bash
+# Check Python syntax
+python -m py_compile your_file.py
+
+# Test your code runs without errors
+python your_file.py --help
+
+# If you added an API call, verify it works with a real key
+```
+
+## File Structure
+
+```
+LLMs/
+├── 01-introduction/        # Module 1: Introduction
+├── 02-transformer-architecture/  # Module 2: Transformers
+├── 02-prompt-engineering/  # Module 3: Prompt Engineering
+├── 03-llm-apis/            # Module 4: LLM APIs
+├── 04-rag/                 # Module 5: RAG
+├── 05-fine-tuning/         # Module 6: Fine-Tuning
+├── 07-advanced-prompting/  # Module 7: Advanced Prompting
+├── 08-ai-agents/           # Module 8: AI Agents
+├── 09-advanced-rag/        # Module 9: Advanced RAG
+├── 10-evaluation/          # Module 10: Evaluation
+├── 11-deployment/          # Module 11: Deployment
+├── 12-safety-ethics/       # Module 12: Safety & Ethics
+└── projects/               # Practice projects
+```
+
+## Getting Help
+
+- Open an issue for questions
+- Check existing documentation first
+- Be respectful and constructive
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the same license as the project.
