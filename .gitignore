@@ -47,6 +47,8 @@ Thumbs.db
 *.log
 
 # Project-specific
+.course-site-build/
+site/
 *.pt
 *.pth
 *.bin

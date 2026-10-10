@@ -1,0 +1,12 @@
+FROM python:3.12-slim AS builder
+
+WORKDIR /workspace
+COPY . .
+RUN python -m pip install --no-cache-dir -r course_site/requirements.txt \
+    && python course_site/prepare_docs.py \
+    && mkdocs build --strict
+
+FROM nginx:1.27-alpine AS runtime
+COPY --from=builder /workspace/.course-site-build/site/ /usr/share/nginx/html/
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

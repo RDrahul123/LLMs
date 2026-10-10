@@ -1,0 +1,15 @@
+.git
+.venv
+**/.venv
+venv
+**/venv
+__pycache__
+**/__pycache__
+.course-site-build
+site
+.env
+**/.env
+*.pt
+*.pth
+*.bin
+*.safetensors

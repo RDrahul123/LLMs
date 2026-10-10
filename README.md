@@ -283,6 +283,20 @@ cd 01-introduction
 
 ---
 
+## Course Website
+
+This repository includes a responsive, searchable course website with guided navigation, rendered diagrams, dark/light themes, and browser-local reading progress. The existing Markdown lessons and code remain the source of truth.
+
+```bash
+python -m pip install -r course_site/requirements.txt
+python course_site/prepare_docs.py
+mkdocs serve
+```
+
+Deployment instructions for **GitHub Pages, Netlify, Vercel, and Docker-based hosts** are in [`course_site/README.md`](./course_site/README.md). GitHub Pages deployment is automated through the `Deploy course website` workflow.
+
+---
+
 ## Prerequisites
 
 - Python 3.9+

@@ -1,0 +1,6 @@
+[build]
+command = "python -m pip install -r course_site/requirements.txt && python course_site/prepare_docs.py && mkdocs build --strict"
+publish = ".course-site-build/site"
+
+[build.environment]
+PYTHON_VERSION = "3.12"

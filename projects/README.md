@@ -25,11 +25,11 @@ The arrows are a recommended learning order, not a technical dependency between 
 
 | # | Project | Difficulty | Time | Modules Used |
 |---|---------|-----------|------|--------------|
-| 1 | [RAG Chatbot](./01-rag-chatbot/) | Intermediate | 3-4 hrs | 4, 5 |
-| 2 | [Code Review Agent](./02-code-review-agent/) | Advanced | 4-5 hrs | 7, 8 |
-| 3 | [ContextIQ — Document Q&A](./03-document-qa/) | Intermediate | 3-4 hrs | 4, 5, 9 |
-| 4 | [Customer Support Bot](./04-customer-support-bot/) | Advanced | 5-6 hrs | 5, 6, 8 |
-| 5 | [Research Assistant](./05-research-assistant/) | Advanced | 4-5 hrs | 7, 8, 9 |
+| 1 | [RAG Chatbot](./01-rag-chatbot/README.md) | Intermediate | 3-4 hrs | 4, 5 |
+| 2 | [Code Review Agent](./02-code-review-agent/README.md) | Advanced | 4-5 hrs | 7, 8 |
+| 3 | [ContextIQ — Document Q&A](./03-document-qa/README.md) | Intermediate | 3-4 hrs | 4, 5, 9 |
+| 4 | [Customer Support Bot](./04-customer-support-bot/README.md) | Advanced | 5-6 hrs | 5, 6, 8 |
+| 5 | [Research Assistant](./05-research-assistant/README.md) | Advanced | 4-5 hrs | 7, 8, 9 |
 
 ---
 

@@ -1,0 +1,136 @@
+site_name: Learn LLMs
+site_description: A visual, practical course for understanding, building, evaluating, and deploying LLM applications.
+site_url: https://rdrahul123.github.io/LLMs/
+repo_url: https://github.com/RDrahul123/LLMs
+repo_name: RDrahul123/LLMs
+edit_uri: edit/main/
+
+docs_dir: .course-site-build/docs
+site_dir: .course-site-build/site
+
+theme:
+  name: material
+  language: en
+  favicon: assets/course-mark.svg
+  logo: assets/course-mark.svg
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: false
+    code: false
+
+plugins:
+  - search
+
+nav:
+  - Course: index.md
+  - Learning paths: learning-paths.md
+  - Foundations:
+      - Module 1 · LLM Basics: 01-introduction/README.md
+      - Deep dive: 01-introduction/deep-dive.md
+      - Module 2 · Transformers: 02-transformer-architecture/README.md
+      - Deep dive: 02-transformer-architecture/deep-dive.md
+  - Build with LLMs:
+      - Module 3 · Prompt Engineering: 02-prompt-engineering/README.md
+      - Deep dive: 02-prompt-engineering/deep-dive.md
+      - Exercises: 02-prompt-engineering/exercises.md
+      - Module 4 · APIs: 03-llm-apis/README.md
+      - Deep dive: 03-llm-apis/deep-dive.md
+      - Module 5 · RAG: 04-rag/README.md
+      - Deep dive: 04-rag/deep-dive.md
+      - Module 6 · Fine-Tuning: 05-fine-tuning/README.md
+      - Deep dive: 05-fine-tuning/deep-dive.md
+  - Advanced systems:
+      - Module 7 · Advanced Prompting: 07-advanced-prompting/README.md
+      - Deep dive: 07-advanced-prompting/deep-dive.md
+      - Exercises: 07-advanced-prompting/exercises.md
+      - Module 8 · Agents: 08-ai-agents/README.md
+      - Deep dive: 08-ai-agents/deep-dive.md
+      - Module 9 · Advanced RAG: 09-advanced-rag/README.md
+      - Deep dive: 09-advanced-rag/deep-dive.md
+  - Production:
+      - Module 10 · Evaluation: 10-evaluation/README.md
+      - Deep dive: 10-evaluation/deep-dive.md
+      - Module 11 · Deployment: 11-deployment/README.md
+      - Deep dive: 11-deployment/deep-dive.md
+      - Module 12 · Safety & Ethics: 12-safety-ethics/README.md
+      - Deep dive: 12-safety-ethics/deep-dive.md
+  - Projects:
+      - Overview: projects/README.md
+      - RAG Chatbot: projects/01-rag-chatbot/README.md
+      - Code Review Agent: projects/02-code-review-agent/README.md
+      - ContextIQ · Document Q&A: projects/03-document-qa/README.md
+      - Sample knowledge base:
+          - Product handbook: projects/03-document-qa/sample_docs/product_handbook.md
+          - Remote work policy: projects/03-document-qa/sample_docs/remote_work_policy.md
+          - Security FAQ: projects/03-document-qa/sample_docs/security_faq.md
+      - Customer Support Bot: projects/04-customer-support-bot/README.md
+      - Research Assistant: projects/05-research-assistant/README.md
+  - Reference:
+      - Glossary: GLOSSARY.md
+      - Diagram gallery: assets/diagrams/README.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
+  - javascripts/mermaid-init.js
+  - javascripts/progress.js
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/RDrahul123/LLMs
+      name: Course source on GitHub
+
+strict: true

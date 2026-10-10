@@ -11,7 +11,14 @@ from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", "site-packages"}
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    ".course-site-build",
+    "venv",
+    "__pycache__",
+    "site-packages",
+}
 INLINE_LINK = re.compile(r"!?\[[^\]]*\]\((<[^>]+>|[^)]+)\)")
 
 
@@ -24,12 +31,31 @@ def project_files(suffix: str) -> list[Path]:
     ]
 
 
+def without_fenced_code(content: str) -> str:
+    """Mask fenced examples so code such as ``mapping[key](left, right)`` is not parsed as a link."""
+    lines = content.splitlines()
+    masked: list[str] = []
+    fence: str | None = None
+    for line in lines:
+        stripped = line.lstrip()
+        if fence is None and (stripped.startswith("```") or stripped.startswith("~~~")):
+            fence = stripped[:3]
+            masked.append("")
+        elif fence is not None:
+            masked.append("")
+            if stripped.startswith(fence):
+                fence = None
+        else:
+            masked.append(line)
+    return "\n".join(masked)
+
+
 def check_markdown_links() -> list[str]:
     """Find inline links and images whose local target does not exist."""
     failures: list[str] = []
     for markdown in project_files(".md"):
         content = markdown.read_text(encoding="utf-8")
-        for match in INLINE_LINK.finditer(content):
+        for match in INLINE_LINK.finditer(without_fenced_code(content)):
             target = match.group(1).strip("<>").strip()
             target = target.split(maxsplit=1)[0] if target else ""
             if not target:

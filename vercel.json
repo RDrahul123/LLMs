@@ -1,0 +1,5 @@
+{
+  "buildCommand": "python3 -m pip install -r course_site/requirements.txt && python3 course_site/prepare_docs.py && mkdocs build --strict",
+  "outputDirectory": ".course-site-build/site",
+  "cleanUrls": false
+}
