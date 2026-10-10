@@ -285,7 +285,7 @@ cd 01-introduction
 
 ## Course Website
 
-This repository includes a responsive, searchable course website with guided navigation, rendered diagrams, dark/light themes, and browser-local reading progress. The existing Markdown lessons and code remain the source of truth.
+This repository includes a responsive, searchable course website with guided navigation, rendered diagrams, a dark-only visual theme, and browser-local reading progress. The existing Markdown lessons and code remain the source of truth.
 
 ```bash
 python -m pip install -r course_site/requirements.txt
