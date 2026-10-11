@@ -182,12 +182,152 @@
   border-radius: 0.8rem;
 }
 
+.diagram-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: #526883 #111a2b;
+}
+
+.diagram-scroll:focus-visible {
+  outline: 2px solid var(--course-teal);
+  outline-offset: 3px;
+}
+
+.diagram-scroll img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
 @media (max-width: 600px) {
+  .md-typeset {
+    font-size: 0.88rem;
+    line-height: 1.68;
+  }
+
+  .md-typeset h1 {
+    font-size: 1.8rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .md-typeset h2 {
+    font-size: 1.4rem;
+    line-height: 1.25;
+  }
+
+  .md-typeset h3 {
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .md-typeset p,
+  .md-typeset li,
+  .md-typeset td,
+  .md-typeset th {
+    overflow-wrap: anywhere;
+  }
+
+  .md-typeset code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .md-typeset pre > code {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .md-content__inner {
+    margin: 0 0.65rem;
+  }
+
+  .md-typeset .grid.cards > ul,
+  .md-typeset .grid.cards > ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .course-hero {
+    margin: 0.25rem 0 1.4rem;
+    padding: 1.35rem;
+    border-radius: 1.1rem;
+  }
+
+  .course-hero h1 {
+    max-width: 100%;
+    font-size: clamp(2rem, 10vw, 2.8rem);
+  }
+
+  .course-hero .course-lead {
+    font-size: 1rem;
+  }
+
+  .course-hero-stats {
+    gap: 0.45rem;
+  }
+
+  .course-hero-stats span {
+    font-size: 0.7rem;
+  }
+
+  .course-hero .md-button {
+    margin: 0.25rem 0.25rem 0.4rem 0;
+    white-space: normal;
+  }
+
+  .diagram-scroll img {
+    width: 880px;
+    max-width: none;
+  }
+
+  .mermaid svg {
+    width: 760px !important;
+    max-width: none !important;
+  }
+
+  .md-typeset table:not([class]) {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.76rem;
+  }
+
+  .md-typeset__scrollwrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .course-progress {
     grid-template-columns: 1fr;
+    min-width: 0;
+    gap: 0.65rem;
+    padding: 0.8rem;
+  }
+
+  .course-progress__copy {
+    min-width: 0;
   }
 
   .course-progress__actions {
+    flex-wrap: wrap;
     justify-content: flex-start;
   }
 }

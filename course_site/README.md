@@ -18,7 +18,7 @@ python course_site/prepare_docs.py
 mkdocs serve
 ```
 
-Open the local URL printed by MkDocs. The site includes full-text search, responsive module navigation, Mermaid diagrams, a single dark theme, and browser-local lesson progress. Progress is saved in the current browser only; no learner account or tracking service is used.
+Open the local URL printed by MkDocs. The site includes full-text search, responsive module navigation, horizontally scrollable detailed diagrams and tables on phones, Mermaid diagrams, a single dark theme, and browser-local lesson progress. Progress is saved in the current browser only; no learner account or tracking service is used.
 
 ## Build for deployment
 
