@@ -444,9 +444,18 @@ body[data-md-color-scheme="slate"] {
 
 .md-typeset .grid.cards > ul > li,
 .md-typeset .grid.cards > ol > li {
+  min-width: 0;
+  height: auto;
+  overflow: visible;
   border: 1px solid var(--course-border);
   background: var(--course-panel);
   color: var(--course-text);
+}
+
+.md-typeset .grid.cards > ul > li p,
+.md-typeset .grid.cards > ol > li p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .md-typeset .grid.cards > ul > li:hover,
@@ -537,4 +546,11 @@ body[data-md-color-scheme="slate"] {
 ::selection {
   background: #236a65;
   color: #f5fffd;
+}
+
+@media (max-width: 900px) {
+  .md-typeset .grid.cards > ul,
+  .md-typeset .grid.cards > ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
