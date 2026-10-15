@@ -19,6 +19,8 @@ No fluff. Just clean explanations, working code, and real examples.
 
 **12 modules. 5 projects. 60+ code files. From zero to production.**
 
+> **Want all the core concepts in one place?** Start with the [Complete LLM Study Guide](./LLM_STUDY_GUIDE.md), a sequential reference covering model foundations, Transformers, training, prompting, RAG, fine-tuning, agents, evaluation, deployment, and safety.
+
 ---
 
 ## Course Roadmap
@@ -258,7 +260,7 @@ Complete coverage from concepts to production. Recommended for serious practitio
 
 ### Visual and Deep-Dive Lessons
 
-Each module now includes a companion lesson with rendered diagrams, expanded explanations, worked reasoning, common failure modes, and knowledge checks. Start from a module overview and follow its **Visual Deep Dive** link. Browse the [diagram gallery](./assets/diagrams/README.md) or look up terminology in the [LLM systems glossary](./GLOSSARY.md).
+Start with the [Complete LLM Study Guide](./LLM_STUDY_GUIDE.md) for a single, connected learning path. Each module also includes a companion lesson with rendered diagrams, expanded explanations, worked reasoning, common failure modes, and knowledge checks. Start from a module overview and follow its **Visual Deep Dive** link. Browse the [diagram gallery](./assets/diagrams/README.md) or look up terminology in the [LLM systems glossary](./GLOSSARY.md).
 
 ---
 
