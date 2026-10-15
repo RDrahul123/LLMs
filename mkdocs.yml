@@ -40,6 +40,7 @@ plugins:
 
 nav:
   - Course: index.md
+  - Complete study guide: LLM_STUDY_GUIDE.md
   - Learning paths: learning-paths.md
   - Foundations:
       - Module 1 · LLM Basics: 01-introduction/README.md

@@ -110,6 +110,8 @@ flowchart LR
     F --> P[Build a project]
 ```
 
+For one connected reference covering the concepts in sequence, read the [Complete LLM Study Guide](LLM_STUDY_GUIDE.md).
+
 Choose a [learning path](learning-paths.md) that fits your background. You can read the lessons without an API key; provider keys are only needed for examples that call hosted models.
 
 ## Put the ideas into practice
@@ -200,6 +202,7 @@ def prepare_docs() -> Path:
     _copy_tree("projects")
     _copy_tree("assets/diagrams")
     shutil.copy2(ROOT / "GLOSSARY.md", DOCS_DIR / "GLOSSARY.md")
+    shutil.copy2(ROOT / "LLM_STUDY_GUIDE.md", DOCS_DIR / "LLM_STUDY_GUIDE.md")
     shutil.copy2(ROOT / "course_site" / "brand.svg", DOCS_DIR / "assets" / "course-mark.svg")
     shutil.copytree(ROOT / "course_site" / "static", DOCS_DIR, dirs_exist_ok=True)
     _write_course_pages()
